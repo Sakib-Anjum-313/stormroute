@@ -46,6 +46,10 @@ type Rgba = [number, number, number, number]
 const GREY: Rgba = [120, 128, 140, 255]
 const CASING: Rgba = [255, 255, 255, 230]
 const CASING_DARK: Rgba = [10, 13, 18, 230]
+// Path cores are grey (other routes), neutral (hovered) or risk colors (selected): route identity
+// colors only appear as casings and badges, so they are never mistaken for a risk level.
+const HOVER_CORE: Rgba = [30, 41, 59, 255]
+const HOVER_CORE_DARK: Rgba = [226, 232, 240, 255]
 const STREAMING: [number, number, number, number] = [120, 128, 140, 200]
 const OUTLINE: [number, number, number, number] = [255, 255, 255, 255]
 const DARK_OUTLINE: [number, number, number, number] = [30, 41, 59, 255]
@@ -170,23 +174,36 @@ export function buildLayers(input: LayerInput): Layer[] {
     }),
   )
 
-  // Hovering a card or a path draws that route on top in its identity color (unless it is the
-  // selected route, which is already drawn on top in risk colors).
+  // Hovering a card or a path draws that route on top with an identity-colored casing (unless it
+  // is the selected route, which is already drawn on top in risk colors).
   const hovered =
     hoveredRouteId === null ? undefined : input.routes.find((r) => r.id === hoveredRouteId)
   if (hovered && (hovered.id !== selectedRouteId || streaming)) {
+    const data = singleton(hovered)
     layers.push(
       new PathLayer<MapRoute>({
-        id: 'route-hover',
-        data: singleton(hovered),
+        id: 'route-hover-casing',
+        data,
         getPath: getRoutePath,
         positionFormat: 'XY',
         getColor: getRouteColor,
-        getWidth: 6,
+        getWidth: 10,
+        widthUnits: 'pixels',
+        capRounded: true,
+        jointRounded: true,
+      }),
+      new PathLayer<MapRoute>({
+        id: 'route-hover',
+        data,
+        getPath: getRoutePath,
+        positionFormat: 'XY',
+        getColor: input.dark ? HOVER_CORE_DARK : HOVER_CORE,
+        getWidth: 4,
         widthUnits: 'pixels',
         capRounded: true,
         jointRounded: true,
         pickable: true,
+        updateTriggers: { getColor: input.dark },
       }),
     )
   }

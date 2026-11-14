@@ -44,10 +44,12 @@ test.each([
   expect(ids(layers).includes('route-hover')).toBe(present)
 })
 
-test('the hover layer draws the route in its identity color and keeps its data identity', () => {
-  const first = buildLayers(input({ hoveredRouteId: 'B' })).find((l) => l.id === 'route-hover')
+test('the hover casing uses the identity color and keeps its data identity', () => {
+  const first = buildLayers(input({ hoveredRouteId: 'B' })).find(
+    (l) => l.id === 'route-hover-casing',
+  )
   const second = buildLayers(input({ hoveredRouteId: 'B', frameKey: 1 })).find(
-    (l) => l.id === 'route-hover',
+    (l) => l.id === 'route-hover-casing',
   )
   expect(first?.props.data).toBe(second?.props.data)
   const getColor = (first?.props as { getColor?: unknown } | undefined)?.getColor as (

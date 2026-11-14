@@ -33,13 +33,21 @@ export function levelLabel(level: RiskLevel | null): string {
 
 export type Rgb = readonly [number, number, number]
 
-/** PLAN section 7 palette. */
+/**
+ * Risk palette, validated with the dataviz skill's checker against the positron basemap surface
+ * (#f2f3f0): lightness band, chroma floor, adjacent CVD separation (worst ΔE 14.3, deutan) and
+ * normal-vision separation (worst ΔE 15.3) all pass. The M3 palette failed (Low↔Moderate ΔE 1.8
+ * under protanopia). Against the dark basemap the same colors keep both separation checks; only
+ * Moderate sits above the dark lightness band, i.e. brighter, which is fine on a dark map. One
+ * palette for both themes keeps the heatmap, checkpoints and cards identical. Moderate is below
+ * 3:1 on light surfaces, so it is never shown without its text label (relief rule).
+ */
 export const RISK_HEX: Record<RiskLevel, string> = {
-  LOW: '#66bd63',
-  MODERATE: '#fdae61',
-  HIGH: '#f46d43',
-  SEVERE: '#d73027',
-  NO_TRAVEL: '#67001f',
+  LOW: '#2e9b6f',
+  MODERATE: '#ccb501',
+  HIGH: '#d75928',
+  SEVERE: '#b0062d',
+  NO_TRAVEL: '#7b2a8a',
 }
 
 export const NO_DATA_HEX = '#9ca3af'
@@ -66,9 +74,10 @@ export function levelRgb(level: RiskLevel | null): Rgb {
 
 /**
  * Heatmap fill alpha per level byte (0-4), so calm cells stay a light wash under the routes and
- * dangerous cells stand out. Index 5 is used for no-data cells.
+ * worse cells stand out without hiding the basemap and the route checkpoints (No Travel was 190,
+ * which buried the routes in an all-No-Travel plan). Index 5 is used for no-data cells.
  */
-const HEATMAP_ALPHA = [56, 110, 140, 165, 190, 36] as const
+const HEATMAP_ALPHA = [44, 92, 108, 120, 132, 30] as const
 
 /**
  * RGBA lookup indexed by the heatmap level byte (0-255). Every byte outside 0-4 maps to the
