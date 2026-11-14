@@ -65,3 +65,31 @@ test('no_route: the 422 error card, and Retry sends the plan again', async ({
   await expect(page.getByTestId('error-NO_ROUTE')).toBeVisible()
   await expect(page.getByTestId('plan-summary')).toHaveCount(0)
 })
+
+test('form-level VALIDATION (routing BAD_INPUT) gets a card without Retry', async ({
+  page,
+  consoleGuard,
+}, testInfo) => {
+  // No fixture produces this, so the 400 body is stubbed (the shape the backend sends).
+  consoleGuard.allow(/Failed to load resource: the server responded with a status of 400/)
+  await page.route('**/api/plan', (route) =>
+    route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: {
+          code: 'VALIDATION',
+          message: 'The routing service rejected these trip parameters.',
+          details: {},
+          retry_after_s: null,
+        },
+      }),
+    }),
+  )
+  await planDemo(page, 'default')
+  const card = page.getByTestId('error-VALIDATION')
+  await expect(card).toContainText('Check the trip details')
+  await expect(card).toContainText('The routing service rejected these trip parameters.')
+  await expect(card.getByRole('button')).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('validation-card.png') })
+})

@@ -2,9 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
+import { ApiError } from '../../lib/api/errors'
 import type { GeocodeResult, PlanRequest } from '../../lib/api/types'
 import { useApiStatus } from '../../store/apiStatus'
-import { initialPlanState, usePlanStore } from '../../store/planStore'
+import { failPlan, initialPlanState, usePlanStore } from '../../store/planStore'
 import { validateTrip, type TripFormDraft } from './schema'
 import { TripForm } from './TripForm'
 
@@ -98,6 +99,25 @@ test('shows an inline error for an out-of-range weight and does not submit', asy
   expect(await screen.findByText('Weight must be at most 200,000 lb')).toBeInTheDocument()
   expect(weight).toHaveAttribute('aria-invalid', 'true')
   expect(onSubmit).not.toHaveBeenCalled()
+})
+
+test('server VALIDATION details show inline under their fields, nested ones included', () => {
+  renderForm()
+  act(() =>
+    failPlan(
+      new ApiError({
+        code: 'VALIDATION',
+        message: 'The request is invalid.',
+        details: {
+          departure_local: ['Departure is in the past.'],
+          destination: { lat: ['Ensure this value is less than or equal to 90.'] },
+        },
+        retry_after_s: null,
+      }),
+    ),
+  )
+  expect(screen.getByText('Departure is in the past.')).toBeInTheDocument()
+  expect(screen.getByText('Ensure this value is less than or equal to 90.')).toBeInTheDocument()
 })
 
 test('shows "No matches" when geocoding finds nothing', async () => {

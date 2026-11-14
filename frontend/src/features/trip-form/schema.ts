@@ -88,15 +88,33 @@ const API_FIELD: Record<string, TripFormField> = {
   apply_hos: 'applyHos',
 }
 
+/** Messages in a DRF error value: a string, a list, or nested per sub-field (`{lat: [...]}`). */
+function messagesOf(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(messagesOf)
+  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(messagesOf)
+  return value === undefined || value === null ? [] : [String(value)]
+}
+
 export function fieldErrorsFromDetails(details: Record<string, unknown>): FieldErrors {
   const errors: FieldErrors = {}
   for (const [key, value] of Object.entries(details)) {
     const field = API_FIELD[key]
-    if (!field) continue
-    const message = Array.isArray(value) ? value.map(String).join(' ') : String(value)
-    errors[field] = message
+    const messages = messagesOf(value)
+    if (field && messages.length > 0) errors[field] = messages.join(' ')
   }
   return errors
+}
+
+/**
+ * Messages of a VALIDATION error that no form field can show (`non_field_errors`, or a request
+ * the routing service rejected), or `null` when the form shows every message inline.
+ */
+export function formLevelMessages(details: Record<string, unknown>): string[] | null {
+  if (Object.keys(fieldErrorsFromDetails(details)).length > 0) return null
+  return Object.entries(details)
+    .filter(([key]) => !(key in API_FIELD) && key !== 'request_id')
+    .flatMap(([, value]) => messagesOf(value))
 }
 
 /** `YYYY-MM-DDTHH:MM` for a local wall-clock date (what `<input type="datetime-local">` takes). */

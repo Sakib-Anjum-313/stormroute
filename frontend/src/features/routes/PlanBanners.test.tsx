@@ -91,7 +91,7 @@ test('retry_after_s counts down on the Retry button; INTERNAL shows the referenc
   vi.useRealTimers()
 })
 
-test('INTERNAL error shows the request reference; VALIDATION shows no card', () => {
+test('INTERNAL error shows the request reference; field VALIDATION shows no card', () => {
   render(<PlanStatus />)
   act(() =>
     failPlan(
@@ -104,6 +104,39 @@ test('INTERNAL error shows the request reference; VALIDATION shows no card', () 
     ),
   )
   expect(screen.getByRole('alert')).toHaveTextContent('Reference abc123')
-  act(() => failPlan(ApiError.of('VALIDATION', 'bad')))
+  act(() =>
+    failPlan(
+      new ApiError({
+        code: 'VALIDATION',
+        message: 'The request is invalid.',
+        details: { load_weight_lb: ['Ensure this value is less than or equal to 200000.'] },
+        retry_after_s: null,
+      }),
+    ),
+  )
   expect(screen.queryByRole('alert')).toBeNull()
+})
+
+test.each([
+  [{}, 'The routing service rejected these trip parameters.'],
+  [
+    { non_field_errors: ['Origin and destination are the same.'] },
+    'Origin and destination are the same.',
+  ],
+])('form-level VALIDATION (%o) gets a card without Retry', (details, text) => {
+  render(
+    <ErrorCard
+      error={
+        new ApiError({
+          code: 'VALIDATION',
+          message: 'The routing service rejected these trip parameters.',
+          details,
+          retry_after_s: null,
+        })
+      }
+    />,
+  )
+  expect(screen.getByRole('alert')).toHaveTextContent('Check the trip details')
+  expect(screen.getByRole('alert')).toHaveTextContent(text)
+  expect(screen.queryByRole('button')).toBeNull()
 })
