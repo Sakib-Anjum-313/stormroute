@@ -1,8 +1,8 @@
 import { usePlanStore } from '../../store/planStore'
-import { whySentence, whyTable } from './explain'
+import { noWeatherAnywhere, whySentence, whyTable } from './explain'
 
 /**
- * "Why this route?": the comparator steps 0-4 for every route, the decisive cell highlighted and
+ * "Why this route?": the comparator steps 0-5 for every route, the decisive cell highlighted and
  * one sentence with the numbers. Follows the interval toggle; never re-ranks anything.
  */
 export function WhyPanel() {
@@ -18,6 +18,7 @@ export function WhyPanel() {
     routes.map((r) => r.id),
   )
   const partial = plan.plan.warnings.some((w) => w.code === 'WEATHER_PARTIAL')
+  const blind = noWeatherAnywhere(rec)
 
   return (
     <section aria-labelledby="why-heading" className="space-y-2.5" data-testid="why-panel">
@@ -100,6 +101,8 @@ export function WhyPanel() {
         Lower wins at each step; later steps only break ties. Dotted values lost at that step.
         {rec.decisive_step === 'route_order' && ' Every step tied, so provider order decides.'}
         {partial && ' Partial: checkpoints without weather data are left out of average risk.'}
+        {blind &&
+          ' No route has any weather data, so this ranking is by travel time only: check the weather before you go.'}
       </p>
     </section>
   )

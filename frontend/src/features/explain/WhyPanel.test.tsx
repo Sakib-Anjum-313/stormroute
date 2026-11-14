@@ -18,8 +18,8 @@ function planWithSevereDecision(): Plan {
     route_id: 'B',
     ranking: ['B', 'A'],
     all_no_travel: false,
-    steps: ['no_travel_mi', 'severe_mi', 'high_mi', 'avg_risk', 'duration_min'],
-    keys: { A: [0, 18.5, 40, 1.12, 100], B: [0, 0, 22.5, 0.91, 120] },
+    steps: ['no_weather_data', 'no_travel_mi', 'severe_mi', 'high_mi', 'avg_risk', 'duration_min'],
+    keys: { A: [0, 0, 18.5, 40, 1.12, 100], B: [0, 0, 0, 22.5, 0.91, 120] },
     decided_by: { A: 'severe_mi' },
     decisive_step: 'severe_mi',
   }
@@ -37,14 +37,14 @@ test('names the decisive step and highlights its cell; follows the interval', ()
 
   // 25 mi: the fixture's recommendation is decided by travel time.
   expect(screen.getByTestId('why-sentence')).toHaveTextContent(
-    'Route A wins at step 4 (Travel time): 1 h 40 min vs Route B 2 h.',
+    'Route A wins at step 5 (Travel time): 1 h 40 min vs Route B 2 h.',
   )
   let decisive = screen.getByRole('row', { current: true })
   expect(within(decisive).getByRole('rowheader')).toHaveTextContent('Travel time')
 
   act(() => setCheckpointInterval(10))
   expect(screen.getByTestId('why-sentence')).toHaveTextContent(
-    'Route B wins at step 1 (Severe miles): 0.0 mi vs Route A 18.5 mi.',
+    'Route B wins at step 2 (Severe miles): 0.0 mi vs Route A 18.5 mi.',
   )
   decisive = screen.getByRole('row', { current: true })
   expect(within(decisive).getByRole('rowheader')).toHaveTextContent('Severe miles')
@@ -52,5 +52,18 @@ test('names the decisive step and highlights its cell; follows the interval', ()
   expect(cell).toHaveAttribute('data-decisive', 'true')
   expect(cell).toHaveTextContent('(decisive)')
   expect(within(decisive).getByText('18.5 mi')).toHaveTextContent('(lost here)')
-  expect(screen.getAllByRole('row')).toHaveLength(6) // header + steps 0-4
+  expect(screen.getAllByRole('row')).toHaveLength(7) // header + steps 0-5
+})
+
+test('says so when no route has any weather data', () => {
+  const plan = makePlan()
+  plan.recommendation[25] = {
+    ...plan.recommendation[25],
+    keys: { A: [1, 0, 0, 0, null, 100], B: [1, 0, 0, 0, null, 120] },
+  }
+  render(<WhyPanel />)
+  act(() => applyPlanEvent({ type: 'result', plan }))
+  expect(screen.getByTestId('why-panel')).toHaveTextContent(
+    'No route has any weather data, so this ranking is by travel time only',
+  )
 })

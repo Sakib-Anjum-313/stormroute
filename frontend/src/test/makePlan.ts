@@ -105,8 +105,8 @@ function recommendation(routeId: string): Recommendation {
     route_id: routeId,
     ranking: [routeId, routeId === 'A' ? 'B' : 'A'],
     all_no_travel: false,
-    steps: ['no_travel_mi', 'severe_mi', 'high_mi', 'avg_risk', 'duration_min'],
-    keys: { A: [0, 0, 0, 0, 100], B: [0, 0, 0, 0, 120] },
+    steps: ['no_weather_data', 'no_travel_mi', 'severe_mi', 'high_mi', 'avg_risk', 'duration_min'],
+    keys: { A: [0, 0, 0, 0, 0, 100], B: [0, 0, 0, 0, 0, 120] },
     decided_by: { B: 'duration_min' },
     decisive_step: 'duration_min',
   }

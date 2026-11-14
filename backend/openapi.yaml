@@ -315,6 +315,7 @@ components:
       - wind_mph
     DecidingStepEnum:
       enum:
+      - no_weather_data
       - no_travel_mi
       - severe_mi
       - high_mi
@@ -323,6 +324,7 @@ components:
       - route_order
       type: string
       description: |-
+        * `no_weather_data` - no_weather_data
         * `no_travel_mi` - no_travel_mi
         * `severe_mi` - severe_mi
         * `high_mi` - high_mi
@@ -784,6 +786,7 @@ components:
           type: object
           additionalProperties:
             enum:
+            - no_weather_data
             - no_travel_mi
             - severe_mi
             - high_mi
@@ -792,6 +795,7 @@ components:
             - route_order
             type: string
             description: |-
+              * `no_weather_data` - no_weather_data
               * `no_travel_mi` - no_travel_mi
               * `severe_mi` - severe_mi
               * `high_mi` - high_mi
@@ -804,6 +808,7 @@ components:
           description: |-
             The step that separated the winner from the runner-up.
 
+            * `no_weather_data` - no_weather_data
             * `no_travel_mi` - no_travel_mi
             * `severe_mi` - severe_mi
             * `high_mi` - high_mi
@@ -957,6 +962,7 @@ components:
         * `no_data` - no_data
     StepsEnum:
       enum:
+      - no_weather_data
       - no_travel_mi
       - severe_mi
       - high_mi
@@ -964,6 +970,7 @@ components:
       - duration_min
       type: string
       description: |-
+        * `no_weather_data` - no_weather_data
         * `no_travel_mi` - no_travel_mi
         * `severe_mi` - severe_mi
         * `high_mi` - high_mi

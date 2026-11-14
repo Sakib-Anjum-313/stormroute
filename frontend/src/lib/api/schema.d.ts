@@ -132,7 +132,8 @@ export interface components {
       cell: number[]
     }
     /**
-     * @description * `no_travel_mi` - no_travel_mi
+     * @description * `no_weather_data` - no_weather_data
+     *     * `no_travel_mi` - no_travel_mi
      *     * `severe_mi` - severe_mi
      *     * `high_mi` - high_mi
      *     * `avg_risk` - avg_risk
@@ -141,7 +142,13 @@ export interface components {
      * @enum {string}
      */
     DecidingStepEnum:
-      'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min' | 'route_order'
+      | 'no_weather_data'
+      | 'no_travel_mi'
+      | 'severe_mi'
+      | 'high_mi'
+      | 'avg_risk'
+      | 'duration_min'
+      | 'route_order'
     /**
      * @description * `polyline6` - polyline6
      * @enum {string}
@@ -368,11 +375,18 @@ export interface components {
       /** @description For every non-winning route, the first step at which it lost. */
       decided_by: {
         [key: string]:
-          'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min' | 'route_order'
+          | 'no_weather_data'
+          | 'no_travel_mi'
+          | 'severe_mi'
+          | 'high_mi'
+          | 'avg_risk'
+          | 'duration_min'
+          | 'route_order'
       }
       /**
        * @description The step that separated the winner from the runner-up.
        *
+       *     * `no_weather_data` - no_weather_data
        *     * `no_travel_mi` - no_travel_mi
        *     * `severe_mi` - severe_mi
        *     * `high_mi` - high_mi
@@ -463,14 +477,16 @@ export interface components {
      */
     StatusEnum: 'ok' | 'no_data'
     /**
-     * @description * `no_travel_mi` - no_travel_mi
+     * @description * `no_weather_data` - no_weather_data
+     *     * `no_travel_mi` - no_travel_mi
      *     * `severe_mi` - severe_mi
      *     * `high_mi` - high_mi
      *     * `avg_risk` - avg_risk
      *     * `duration_min` - duration_min
      * @enum {string}
      */
-    StepsEnum: 'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min'
+    StepsEnum:
+      'no_weather_data' | 'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min'
     Trigger: {
       rule: string
       detail: string

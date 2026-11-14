@@ -9,6 +9,7 @@ import { formatAvgRisk, formatDuration } from '../../lib/format/format'
 export type Step = Recommendation['steps'][number]
 
 export const STEP_LABEL: Record<Step, string> = {
+  no_weather_data: 'No weather data at all',
   no_travel_mi: 'No Travel miles',
   severe_mi: 'Severe miles',
   high_mi: 'High miles',
@@ -19,6 +20,8 @@ export const STEP_LABEL: Record<Step, string> = {
 export function formatStepValue(step: Step, value: number | null | undefined): string {
   if (value === null || value === undefined) return '—'
   switch (step) {
+    case 'no_weather_data':
+      return value > 0 ? 'Yes' : 'No'
     case 'avg_risk':
       return formatAvgRisk(value)
     case 'duration_min':
@@ -68,6 +71,13 @@ export function whyTable(rec: Recommendation, routeIds: readonly string[]): WhyR
       lostHere: rec.decided_by[routeId] === step,
     })),
   }))
+}
+
+/** No route has any weather data, so the ranking rests on travel time and provider order. */
+export function noWeatherAnywhere(rec: Recommendation): boolean {
+  const i = rec.steps.indexOf('no_weather_data')
+  if (i < 0) return false
+  return Object.values(rec.keys).every((key) => (key[i] ?? 0) > 0)
 }
 
 /** "A", "A and B", "A, B and C" */

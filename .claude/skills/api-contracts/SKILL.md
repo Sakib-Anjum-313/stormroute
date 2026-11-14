@@ -75,11 +75,11 @@ The `Aggregates` object: `{"miles_by_level": {"LOW":…, "MODERATE":…, "HIGH":
 The `Recommendation` object:
 ```json
 {"route_id": "B", "ranking": ["B", "A", "C"], "all_no_travel": false,
- "steps": ["no_travel_mi", "severe_mi", "high_mi", "avg_risk", "duration_min"],
- "keys": {"A": [0.0, 18.5, 40.0, 1.12, 482], "B": [0.0, 0.0, 22.5, 0.91, 515], "C": [0.0, 7.0, 10.0, 0.70, 530]},
+ "steps": ["no_weather_data", "no_travel_mi", "severe_mi", "high_mi", "avg_risk", "duration_min"],
+ "keys": {"A": [0, 0.0, 18.5, 40.0, 1.12, 482], "B": [0, 0.0, 0.0, 22.5, 0.91, 515], "C": [0, 0.0, 7.0, 10.0, 0.70, 530]},
  "decided_by": {"A": "severe_mi", "C": "severe_mi"}, "decisive_step": "severe_mi"}
 ```
-`keys[r][3]` (avg risk) is `null` for a route without any weather data. `decided_by` and `decisive_step` take a step name or `"route_order"` (a full tie broken by provider order). `decisive_step` is the step that separated the winner from the runner-up (`null` with one route).
+`keys[r][0]` (`no_weather_data`) is 1 for a route without any weather data, else 0, and that route's `keys[r][4]` (avg risk) is `null`. `decided_by` and `decisive_step` take a step name or `"route_order"` (a full tie broken by provider order). `decisive_step` is the step that separated the winner from the runner-up (`null` with one route).
 
 Display rounding: wind and gusts to 0.1 mph, rain and snow to 0.001 in/hr. A displayed value is nudged one unit toward the raw value if rounding would move it into another band (34.96 mph shows as 34.9, never 35.0), so the number always agrees with `level`. Classification always uses the raw value.
 The `Heatmap` object is columnar and binary for size and zero-parse decoding:

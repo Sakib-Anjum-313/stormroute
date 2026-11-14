@@ -37,7 +37,7 @@ Rejected after research: **OpenRouteService HGV**, because its hosted API caps a
 | S2 | Overlapping or integer-only bands | **Lower bound inclusive** `[low, high)`. A boundary value goes to the worse band. Explicit `>` is honored: rain 1.00 = Severe, snow 3.0 = Severe. No rounding. | One rule everywhere, consistent with "≥55", and conservative for safety. Examples: rain 0.25 → High, wind 34.6 → Moderate, snow 1.0 → High. |
 | S3 | Combining conditions, wind metric | Level = `max(wind_after_load_rules, rain, snow)`. Wind = **sustained 10 m wind** (`wind_speed_10m`). Gusts are shown, not scored. Rain = `rain + showers`. | No invented thresholds. Scoring gusts would push most of a route to Moderate+ and make routes indistinguishable. |
 | S4 | Miles from point checkpoints | **Half-interval ownership.** Each checkpoint owns half of the gap to each neighbor. Origin and destination are checkpoints. Owned miles sum exactly to route length. | Unbiased and testable (property test: Σ owned = L). |
-| S5 | "No Travel" in the ranking | A **step 0** is added before the spec's 4 steps: fewest No-Travel miles. A red banner and card badges flag NT. If all routes have NT, they are still ranked, plus a blocking banner says "No safe route at this departure". | NT is strictly worse than Severe, and this keeps the spec's order intact. |
+| S5 | "No Travel" in the ranking | A **step 0** is added before the spec's 4 steps: fewest No-Travel miles. *Changed after M5:* a gate now comes first (`no_weather_data`, step 0: a route with no weather data at all ranks last), so No Travel miles is step 1. A red banner and card badges flag NT. If all routes have NT, they are still ranked, plus a blocking banner says "No safe route at this departure". | NT is strictly worse than Severe, and this keeps the spec's order intact. |
 | S6 | "Lowest average risk" scale | Low 0, Moderate 1, High 2, Severe 3, NT 4, **distance-weighted by owned miles**. NO_DATA miles are excluded. | Matches how Severe and High are counted (in miles). |
 | S7 | Weather time ↔ ETA | Per-variable semantics. Wind (instantaneous) is linearly interpolated between hours. Rain and snow (preceding-hour sums) use the bucket containing the ETA, label `ceil_hour(eta)`, already in/hr. All UTC. | Matches Open-Meteo's documented data semantics exactly. |
 | S8 | Departure range, forecast horizon | `departure_local` is in the origin's time zone (via `timezonefinder`). Allowed range is now−15 min (clamped to now) to now+7 days. Weather is looked up up to 16 days out. Missing values → checkpoint `NO_DATA` plus a warning. The slider covers 0–48 h **from departure** (labels in origin local time). | Lets drivers plan ahead without archive APIs. |
@@ -153,7 +153,7 @@ The exact rules are in the `risk-rules` skill (the single source). Signature:
 ### 5.6 Attribution, aggregates, recommendation (`attribution.py`, `recommend.py`)
 - `owned_mi[i] = (min(L, (m[i]+m[i+1])/2) - max(0, (m[i-1]+m[i])/2)) / 1609.344`.
 - `aggregate(checkpoints) -> Aggregates`: miles by level, NO_DATA miles, distance-weighted `avg_risk`, and `max_level`.
-- `recommend(routes) -> Recommendation`: sort by `key = (nt, severe, high, avg, duration_min, index)` with the rounding from the skill. `decided_by[r]` is the first step where `key(r)` differs from `key(winner)`. Ties at every step resolve by route index and are reported as `"route_order"`.
+- `recommend(routes) -> Recommendation`: sort by `key = (no_weather_data, nt, severe, high, avg, duration_min, index)` with the rounding from the skill. *Changed after M5:* `no_weather_data` (1 when a route has no weather data at all) was added first. Missing checkpoints add no miles to any level, so before this a route whose weather failed entirely tied at 0 on the mileage steps and could beat a route with real High miles. `decided_by[r]` is the first step where `key(r)` differs from `key(winner)`. Ties at every step resolve by route index and are reported as `"route_order"`.
 - Note: "balancing risk and travel time" is implemented exactly as the spec's lexicographic order. Time only decides between routes with equal risk. The README calls this out.
 
 ### 5.7 Heatmap corridor (`heatmap_grid.py`)
@@ -198,7 +198,7 @@ Headers: `Server-Timing: tomtom;dur=…, openmeteo;dur=…, compute;dur=…` (JS
 - Error: an inline card with the code-specific message and Retry. Geocode no-results shows inline under the field.
 - No Travel: a red banner "Route B has 12 mi of No-Travel conditions (wind ≥ 45 mph with 45,000 lb)". If every route has NT: "No safe route for this departure and load". The cards show an NT badge.
 
-**"Why this route?"** A 5-row table (steps 0–4) × 3 routes with values. The decisive cell is highlighted, plus one sentence: "B wins at step 1: 0.0 Severe miles vs A 18.5 and C 7.0." It updates with the interval toggle.
+**"Why this route?"** A 6-row table (steps 0–5, step 0 = no weather data at all) × 3 routes with values. The decisive cell is highlighted, plus one sentence: "B wins at step 1: 0.0 Severe miles vs A 18.5 and C 7.0." It updates with the interval toggle.
 
 **Checkpoint popup** (click; hover shows a mini tooltip): route, mile, kind, ETA (origin tz and local tz), wind/gust mph, rain and snow in/hr, per-variable levels, the overall level chip, and the triggered rules in plain text.
 
@@ -229,7 +229,7 @@ Headers: `Server-Timing: tomtom;dur=…, openmeteo;dur=…, compute;dur=…` (JS
 **Backend (pytest):**
 - ★ `test_risk.py`: table-driven, all 25 canonical cases in the `risk-rules` skill, plus every band boundary for each variable (value − ε, value, value + ε).
 - ★ `test_load_rules.py`: weight 30,000 / 30,001 / 40,000 / 40,001 × wind 34.99 / 35 / 44.99 / 45 / 54.99 / 55.
-- ★ `test_recommend.py`: one case where each step (0–4) alone decides, a full tie → route order, `all_no_travel`, `decided_by` correctness.
+- ★ `test_recommend.py`: one case where each step (0–5) alone decides, a full tie → route order, `all_no_travel`, `decided_by` correctness.
 - ★ `test_attribution.py`: the 25-mi example; hypothesis: Σ owned = L for random L and I; endpoints included.
 - ★ `test_resample.py`: hypothesis properties (§5.2); a known polyline with hand-computed marks.
 - ★ `test_eta.py`: progress interpolation against a hand fixture; monotonic ETAs; last ETA = TomTom arrival ± 1 s.

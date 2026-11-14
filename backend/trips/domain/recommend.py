@@ -1,7 +1,12 @@
 """Route recommendation: lexicographic comparator (risk-rules skill, section 6).
 
-key(route) = (no_travel_mi, severe_mi, high_mi, avg_risk, duration_min, route_index), smaller
-is better. Step 0 (No Travel miles) is the approved addition before the spec's four steps.
+key(route) = (no_weather_data, no_travel_mi, severe_mi, high_mi, avg_risk, duration_min,
+route_index), smaller is better. The spec's four steps are severe, high, average risk and
+duration. Two approved additions come first:
+- ``no_weather_data`` (1 if the route has no weather data at all, else 0). Missing checkpoints add
+  no miles to any level, so without this gate a route whose weather failed entirely would tie at
+  0 on every mileage step and beat a route with real High miles.
+- ``no_travel_mi``: No Travel is strictly worse than Severe.
 Rounding (0.1 mi, 0.01 score, whole minutes) only absorbs float noise.
 """
 
@@ -14,11 +19,18 @@ from typing import Final
 
 from trips.domain.attribution import Aggregates
 
-STEPS: Final = ("no_travel_mi", "severe_mi", "high_mi", "avg_risk", "duration_min")
+STEPS: Final = (
+    "no_weather_data",
+    "no_travel_mi",
+    "severe_mi",
+    "high_mi",
+    "avg_risk",
+    "duration_min",
+)
 ROUTE_ORDER: Final = "route_order"
 """Reported when two routes tie on every step and provider order decides."""
 
-RouteKey = tuple[float, float, float, float, int, int]
+RouteKey = tuple[float, float, float, float, float, int, int]
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,9 +57,11 @@ class Recommendation:
 
 def route_key(score: RouteScore) -> RouteKey:
     agg = score.aggregates
-    # A route with no weather data at all cannot claim a low average; it sorts last at step 3.
+    no_data = agg.avg_risk is None  # no checkpoint with weather data at all
+    # Between two routes without data, the average step is a tie (both inf).
     avg = math.inf if agg.avg_risk is None else round(agg.avg_risk, 2)
     return (
+        1.0 if no_data else 0.0,
         round(agg.no_travel_mi, 1),
         round(agg.severe_mi, 1),
         round(agg.high_mi, 1),

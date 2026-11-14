@@ -96,14 +96,17 @@ Per route and interval:
 
 ```
 key(route) = (
-  round(no_travel_mi, 1),   # step 0 — approved addition: No Travel is strictly worse than Severe
-  round(severe_mi, 1),      # step 1 (spec)
-  round(high_mi, 1),        # step 2 (spec)
-  round(avg_risk, 2),       # step 3 (spec)
-  round(duration_s / 60),   # step 4 (spec): travel time in whole minutes, HOS stops included when the toggle is on
+  1 if avg_risk is None else 0,  # step 0, no_weather_data — approved addition: a route without any weather data ranks last
+  round(no_travel_mi, 1),   # step 1 — approved addition: No Travel is strictly worse than Severe
+  round(severe_mi, 1),      # step 2 (spec)
+  round(high_mi, 1),        # step 3 (spec)
+  round(avg_risk, 2),       # step 4 (spec); inf when avg_risk is None
+  round(duration_s / 60),   # step 5 (spec): travel time in whole minutes, HOS stops included when the toggle is on
   route_index,              # final deterministic tie-break: provider order (A, B, C)
 )
 ```
+
+Why step 0 exists: NO_DATA checkpoints add no miles to any level, so a route whose weather failed entirely has 0 No Travel, Severe and High miles and would otherwise beat a route with real High miles. The gate is all-or-nothing on purpose. A route with *some* data passes it, and its NO_DATA miles are only left out of `avg_risk`; the plan then carries `WEATHER_PARTIAL`. If every route lacks data, they tie at step 0 and the later steps (in practice travel time) decide, and the UI says the ranking is by travel time only.
 
 The rounding exists only to absorb float noise. Report `decided_by` as the first step where the winner's key differs from the runner-up's, and record for every other route the step that separated it from the winner. If every route has `no_travel_mi > 0`, still rank them, but set `all_no_travel = true` so the UI shows a blocking red banner.
 
@@ -139,7 +142,7 @@ Each interval (10/25/50) has its own recommendation. They can differ, and the UI
 | 24 | 36 | 0.12 | 0 | 45,000 | SEVERE | load rule beats rain |
 | 25 | NaN | 0 | 0 | 20,000 | status NO_DATA | missing data is not LOW |
 
-Comparator cases: one test per step (0–4) where that step alone decides, one full tie that resolves to the lowest route index, and one `all_no_travel` case.
+Comparator cases: one test per step (0–5) where that step alone decides, one full tie that resolves to the lowest route index, and one `all_no_travel` case.
 
 ## Where the code lives
 

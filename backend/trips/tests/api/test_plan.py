@@ -86,7 +86,7 @@ def test_json_plan_happy_path(api: Api, upstreams: Upstreams) -> None:
         assert sorted(rec["ranking"]) == ["A", "B", "C"]
         assert rec["route_id"] == rec["ranking"][0]
         assert set(rec["decided_by"]) == set(rec["ranking"][1:])
-        assert all(len(k) == 5 for k in rec["keys"].values())
+        assert all(len(k) == 6 for k in rec["keys"].values())
 
     heat = plan["heatmap"]
     assert heat["hours"] == 49

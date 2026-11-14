@@ -1,4 +1,4 @@
-"""Comparator: one case per step (0-4) where that step alone decides, a full tie, all-NT."""
+"""Comparator: one case per step (0-5) where that step alone decides, a full tie, all-NT."""
 
 from __future__ import annotations
 
@@ -38,6 +38,11 @@ def score(
 # Route B is better at exactly one step; A is better at every later step, so only that step
 # can make B win.
 STEP_CASES = [
+    (
+        "no_weather_data",
+        score("A", 0, nt=0, severe=0, high=0, avg=None, duration_s=3600),
+        score("B", 1, nt=90, severe=90, high=90, avg=3.9, duration_s=9999),
+    ),
     (
         "no_travel_mi",
         score("A", 0, nt=1.0, severe=0, high=0, avg=0.1, duration_s=3600),
@@ -111,17 +116,38 @@ def test_decided_by_records_each_loser_against_the_winner() -> None:
     assert rec.ranking == ("C", "B", "A")
     assert rec.decided_by == {"B": "avg_risk", "A": "severe_mi"}
     assert rec.decisive_step == "avg_risk"
-    assert rec.keys["A"] == (0.0, 18.5, 40.0, 1.12, 482, 0)
-    assert rec.keys["C"] == (0.0, 0.0, 22.5, 0.7, 530, 2)
+    assert rec.keys["A"] == (0.0, 0.0, 18.5, 40.0, 1.12, 482, 0)
+    assert rec.keys["C"] == (0.0, 0.0, 0.0, 22.5, 0.7, 530, 2)
 
 
-def test_route_without_any_data_sorts_last_on_average() -> None:
+def test_route_without_any_data_loses_to_a_route_with_high_miles() -> None:
+    # Missing checkpoints add no miles to any level, so the blind route has 0 High miles; the
+    # no_weather_data step must stop it from winning at the mileage steps.
     blind = score("A", 0, avg=None)
-    seen = score("B", 1, avg=3.9)
-    assert route_key(blind)[3] == math.inf
+    seen = score("B", 1, severe=12.0, high=40.0, avg=2.1)
+    assert route_key(blind)[0] == 1.0
+    assert route_key(seen)[0] == 0.0
+    assert route_key(blind)[4] == math.inf
     rec = recommend([blind, seen])
     assert rec.route_id == "B"
-    assert rec.decided_by == {"A": "avg_risk"}
+    assert rec.decided_by == {"A": "no_weather_data"}
+    assert rec.decisive_step == "no_weather_data"
+
+
+def test_routes_without_any_data_rank_among_themselves_by_the_later_steps() -> None:
+    # Every route blind: the gate ties, the mileage steps tie at 0, avg ties at inf, time decides.
+    rec = recommend([score("A", 0, avg=None, duration_s=7200), score("B", 1, avg=None)])
+    assert rec.route_id == "B"
+    assert rec.decided_by == {"A": "duration_min"}
+
+
+def test_partial_data_is_not_gated() -> None:
+    # A route with some data (avg is set) passes the gate even if other checkpoints are missing.
+    partial = score("A", 0, avg=0.2)
+    full = score("B", 1, high=5.0, avg=0.4)
+    rec = recommend([full, partial])
+    assert rec.route_id == "A"
+    assert rec.decided_by == {"B": "high_mi"}
 
 
 def test_single_route_and_validation() -> None:
@@ -136,4 +162,11 @@ def test_single_route_and_validation() -> None:
 
 
 def test_steps_are_in_spec_order() -> None:
-    assert STEPS == ("no_travel_mi", "severe_mi", "high_mi", "avg_risk", "duration_min")
+    assert STEPS == (
+        "no_weather_data",
+        "no_travel_mi",
+        "severe_mi",
+        "high_mi",
+        "avg_risk",
+        "duration_min",
+    )
