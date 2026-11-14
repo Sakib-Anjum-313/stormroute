@@ -2,8 +2,9 @@ import { MapboxOverlay } from '@deck.gl/mapbox'
 import { Map as MaplibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
+import { MapPopover } from './MapPopover'
 import { exposeTransformForDeck } from './maplibreCompat'
 import { createScene } from './scene'
 
@@ -15,16 +16,19 @@ setWorkerUrl(workerUrl)
 const US_CENTER: [number, number] = [-98.5, 39.5]
 
 /**
- * MapLibre basemap with an interleaved deck.gl overlay. It renders once: the scene controller
- * pushes store changes into the overlay directly, so this component never re-renders.
+ * MapLibre basemap with an interleaved deck.gl overlay. It renders twice (mount, then once the map
+ * exists): the scene controller pushes store changes into the overlay directly, and only the
+ * popover child subscribes to hover and click picks.
  */
 export default function MapView() {
   const containerRef = useRef<HTMLDivElement>(null)
+  // Set once when the map is created; only the popover reads it.
+  const [map, setMap] = useState<MaplibreMap | null>(null)
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const map = new MaplibreMap({
+    const instance = new MaplibreMap({
       container,
       style: BASEMAP_STYLE,
       center: US_CENTER,
@@ -33,21 +37,23 @@ export default function MapView() {
       dragRotate: false,
       pitchWithRotate: false,
     })
-    exposeTransformForDeck(map)
-    map.touchZoomRotate.disableRotation()
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
+    exposeTransformForDeck(instance)
+    instance.touchZoomRotate.disableRotation()
+    instance.addControl(new NavigationControl({ showCompass: false }), 'top-right')
     const overlay = new MapboxOverlay({
       interleaved: true,
       layers: [],
       getCursor: ({ isDragging, isHovering }) =>
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
     })
-    map.addControl(overlay)
-    const disposeScene = createScene(map, overlay)
+    instance.addControl(overlay)
+    const disposeScene = createScene(instance, overlay)
+    setMap(instance)
     return () => {
+      setMap(null)
       disposeScene()
-      map.removeControl(overlay)
-      map.remove()
+      instance.removeControl(overlay)
+      instance.remove()
     }
   }, [])
 
@@ -55,6 +61,7 @@ export default function MapView() {
   return (
     <section className="absolute inset-0" aria-label="Route map">
       <div ref={containerRef} className="h-full w-full" data-testid="map" />
+      {map && <MapPopover map={map} />}
     </section>
   )
 }

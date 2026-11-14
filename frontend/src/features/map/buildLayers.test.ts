@@ -17,8 +17,7 @@ function input(overrides: Partial<LayerInput> = {}): LayerInput {
     heatColors,
     frameKey: 0,
     beforeId: undefined,
-    onHoverRoute: () => {},
-    onClickRoute: () => {},
+    pinnedCheckpoint: null,
     ...overrides,
   }
 }
@@ -40,7 +39,9 @@ test('the hover layer draws the route in its identity color and keeps its data i
     (l) => l.id === 'route-hover',
   )
   expect(first?.props.data).toBe(second?.props.data)
-  const getColor = first?.props.getColor as (d: unknown) => number[]
+  const getColor = (first?.props as { getColor?: unknown } | undefined)?.getColor as (
+    d: unknown,
+  ) => number[]
   expect(getColor(plan.routes[1])).toEqual([...(plan.routes[1]?.rgb ?? []), 255])
 })
 

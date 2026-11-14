@@ -1,4 +1,5 @@
 import {
+  etaLines,
   formatAvgRisk,
   formatDuration,
   formatInHr,
@@ -57,4 +58,18 @@ test('formatTime uses the given zone', () => {
 
 test('formatPounds', () => {
   expect(formatPounds(45000)).toBe('45,000 lb')
+})
+
+test.each([
+  ['same zone', 'America/Denver', 'America/Denver', 'Sun 07:05 MST', null],
+  ['same offset, other name', 'America/Denver', 'America/Boise', 'Sun 07:05 MST', null],
+  [
+    'crossing into Pacific time',
+    'America/Denver',
+    'America/Los_Angeles',
+    'Sun 07:05 MST',
+    'Sun 06:05 PST',
+  ],
+])('etaLines: %s', (_name, originTz, localTz, origin, local) => {
+  expect(etaLines('2026-11-15T14:05:30Z', originTz, localTz)).toEqual({ origin, local })
 })

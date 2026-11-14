@@ -3,7 +3,7 @@
  * same `id`, `data` identity and accessors as the previous call, so deck.gl only diffs props. The
  * heatmap color changes through `updateTriggers` and a reused blend buffer, never new data.
  */
-import type { Layer, PickingInfo } from '@deck.gl/core'
+import type { Layer } from '@deck.gl/core'
 import { PathLayer, ScatterplotLayer, SolidPolygonLayer } from '@deck.gl/layers'
 
 import type { IntervalMi } from '../../lib/api/types'
@@ -27,8 +27,8 @@ export interface LayerInput {
   frameKey: number
   /** First basemap symbol layer, so the heatmap sits under the labels. */
   beforeId: string | undefined
-  onHoverRoute: (id: string | null) => void
-  onClickRoute: (id: string) => void
+  /** The checkpoint whose popup is open (drawn with a ring). */
+  pinnedCheckpoint: MapCheckpoint | null
 }
 
 type Rgba = [number, number, number, number]
@@ -57,6 +57,16 @@ const getCheckpointPosition = (d: MapCheckpoint) => d.position
 const getCheckpointColor = (d: MapCheckpoint) => d.color
 const getCellPolygon = (d: HeatCell) => d.polygon
 
+const pinnedSingletons = new WeakMap<MapCheckpoint, MapCheckpoint[]>()
+function pinnedSingleton(checkpoint: MapCheckpoint): MapCheckpoint[] {
+  let data = pinnedSingletons.get(checkpoint)
+  if (!data) {
+    data = [checkpoint]
+    pinnedSingletons.set(checkpoint, data)
+  }
+  return data
+}
+
 /** Build the corridor cell squares once per plan (cell centers ± half a cell). */
 export function buildHeatCells(plan: DecodedPlan | null): HeatCell[] {
   if (!plan) return []
@@ -76,11 +86,6 @@ export function buildHeatCells(plan: DecodedPlan | null): HeatCell[] {
     }
   }
   return cells
-}
-
-function routeIdOf(info: PickingInfo): string | null {
-  const object = info.object as { id?: string; routeId?: string } | null | undefined
-  return object?.routeId ?? object?.id ?? null
 }
 
 export function buildLayers(input: LayerInput): Layer[] {
@@ -142,11 +147,6 @@ export function buildLayers(input: LayerInput): Layer[] {
       capRounded: true,
       jointRounded: true,
       pickable: true,
-      onHover: (info) => input.onHoverRoute(routeIdOf(info)),
-      onClick: (info) => {
-        const id = routeIdOf(info)
-        if (id) input.onClickRoute(id)
-      },
       updateTriggers: { getColor: streaming },
     }),
   )
@@ -168,11 +168,6 @@ export function buildLayers(input: LayerInput): Layer[] {
         capRounded: true,
         jointRounded: true,
         pickable: true,
-        onHover: (info) => input.onHoverRoute(routeIdOf(info)),
-        onClick: (info) => {
-          const id = routeIdOf(info)
-          if (id) input.onClickRoute(id)
-        },
       }),
     )
   }
@@ -191,7 +186,6 @@ export function buildLayers(input: LayerInput): Layer[] {
         capRounded: true,
         jointRounded: true,
         pickable: true,
-        onHover: (info) => input.onHoverRoute(routeIdOf(info)),
         updateTriggers: { getWidth: hoveredRouteId === selectedRouteId },
       }),
     )
@@ -219,10 +213,27 @@ export function buildLayers(input: LayerInput): Layer[] {
           pickable: true,
           autoHighlight: true,
           highlightColor: [255, 255, 255, 120],
-          onHover: (info) => input.onHoverRoute(routeIdOf(info)),
         }),
       )
     }
+  }
+
+  if (input.pinnedCheckpoint) {
+    layers.push(
+      new ScatterplotLayer<MapCheckpoint>({
+        id: 'checkpoint-pinned',
+        data: pinnedSingleton(input.pinnedCheckpoint),
+        getPosition: getCheckpointPosition,
+        getFillColor: getCheckpointColor,
+        getLineColor: DARK_OUTLINE,
+        getRadius: 9,
+        radiusUnits: 'pixels',
+        stroked: true,
+        lineWidthUnits: 'pixels',
+        getLineWidth: 3,
+        pickable: true,
+      }),
+    )
   }
 
   return layers

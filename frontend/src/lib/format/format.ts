@@ -60,3 +60,14 @@ export function formatMph(mph: number | null): string {
 export function formatInHr(inHr: number | null): string {
   return inHr === null ? '—' : `${inHr.toFixed(inHr === 0 ? 0 : 3)} in/hr`
 }
+
+/** ETA in the origin zone, plus the place's own local time when it reads differently. */
+export function etaLines(
+  etaUtc: string,
+  originTz: string | null,
+  localTz: string,
+): { origin: string; local: string | null } {
+  const origin = formatTime(etaUtc, originTz)
+  const local = formatTime(etaUtc, localTz)
+  return { origin, local: local === origin ? null : local }
+}

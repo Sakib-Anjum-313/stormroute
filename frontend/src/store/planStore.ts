@@ -8,10 +8,40 @@
 import { create } from 'zustand'
 
 import type { ApiError } from '../lib/api/errors'
-import type { IntervalMi, PlanRequest, PlanStreamEvent } from '../lib/api/types'
+import type {
+  Checkpoint,
+  HosStop,
+  IntervalMi,
+  PlanRequest,
+  PlanStreamEvent,
+} from '../lib/api/types'
 import { decodePlan, decodeRoutes, type DecodedPlan, type MapRoute } from '../lib/plan/decodePlan'
 
 export type Phase = 'idle' | 'routing' | 'weather' | 'done' | 'error'
+
+/** Something on the map with details to show: hovered (tooltip) or clicked (popup). */
+export type MapPick =
+  | { kind: 'checkpoint'; routeId: string; checkpoint: Checkpoint }
+  | { kind: 'stop'; routeId: string; stop: HosStop }
+  | { kind: 'place'; role: 'origin' | 'destination'; label: string; lon: number; lat: number }
+
+/** The map position a pick is anchored to. */
+export function pickPosition(pick: MapPick): [number, number] {
+  switch (pick.kind) {
+    case 'checkpoint':
+      return [pick.checkpoint.lon, pick.checkpoint.lat]
+    case 'stop':
+      return [pick.stop.lon, pick.stop.lat]
+    case 'place':
+      return [pick.lon, pick.lat]
+  }
+}
+
+/** The object behind a pick, for identity comparisons. */
+export function pickTarget(pick: MapPick | null): object | null {
+  if (pick === null) return null
+  return pick.kind === 'checkpoint' ? pick.checkpoint : pick.kind === 'stop' ? pick.stop : pick
+}
 
 export interface PlanState {
   phase: Phase
@@ -30,6 +60,10 @@ export interface PlanState {
   interval: IntervalMi
   hoveredRouteId: string | null
   selectedRouteId: string | null
+  /** Map object under the pointer (mini tooltip). */
+  hoverPick: MapPick | null
+  /** Map object the user clicked (popup with details). */
+  pinnedPick: MapPick | null
 }
 
 export const initialPlanState: PlanState = {
@@ -45,6 +79,8 @@ export const initialPlanState: PlanState = {
   interval: 25,
   hoveredRouteId: null,
   selectedRouteId: null,
+  hoverPick: null,
+  pinnedPick: null,
 }
 
 export const usePlanStore = create<PlanState>()(() => ({ ...initialPlanState }))
@@ -98,7 +134,26 @@ export function setHour(hour: number): void {
 }
 
 export function setCheckpointInterval(interval: IntervalMi): void {
-  usePlanStore.setState({ interval })
+  // Checkpoints differ per interval, so a popup for the old set would point at a hidden dot.
+  const { pinnedPick, hoverPick } = usePlanStore.getState()
+  usePlanStore.setState({
+    interval,
+    pinnedPick: pinnedPick?.kind === 'checkpoint' ? null : pinnedPick,
+    hoverPick: hoverPick?.kind === 'checkpoint' ? null : hoverPick,
+  })
+}
+
+export function setHoverPick(pick: MapPick | null): void {
+  const current = usePlanStore.getState().hoverPick
+  if (pickTarget(current) !== pickTarget(pick)) usePlanStore.setState({ hoverPick: pick })
+}
+
+/** Open the popup for a pick (selecting its route), or close it with `null`. */
+export function pinPick(pick: MapPick | null): void {
+  const state = usePlanStore.getState()
+  if (pickTarget(state.pinnedPick) === pickTarget(pick)) return
+  const routeId = pick && pick.kind !== 'place' ? pick.routeId : state.selectedRouteId
+  usePlanStore.setState({ pinnedPick: pick, selectedRouteId: routeId })
 }
 
 export function setHoveredRoute(id: string | null): void {
