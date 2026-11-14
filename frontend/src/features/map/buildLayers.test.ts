@@ -1,10 +1,14 @@
 import { decodePlan } from '../../lib/plan/decodePlan'
 import { makePlan } from '../../test/makePlan'
 import { buildHeatCells, buildLayers, type LayerInput } from './buildLayers'
+import { getIconAtlas } from './iconAtlas'
+import { buildGhosts, buildLabels } from './markers'
 
 const plan = decodePlan(makePlan())
 const heatCells = buildHeatCells(plan)
 const heatColors = new Uint8ClampedArray(plan.heatmap.count * 4)
+const labels = buildLabels(plan.routes)
+const ghosts = buildGhosts(plan)
 
 function input(overrides: Partial<LayerInput> = {}): LayerInput {
   return {
@@ -18,6 +22,12 @@ function input(overrides: Partial<LayerInput> = {}): LayerInput {
     frameKey: 0,
     beforeId: undefined,
     pinnedCheckpoint: null,
+    atlas: getIconAtlas(),
+    labels,
+    stops: [],
+    places: [],
+    ghosts,
+    ghostKey: 0,
     ...overrides,
   }
 }
@@ -46,8 +56,9 @@ test('the hover layer draws the route in its identity color and keeps its data i
 })
 
 test('a slider tick keeps every layer id and data identity', () => {
-  const a = buildLayers(input({ frameKey: 1 }))
-  const b = buildLayers(input({ frameKey: 2 }))
+  const a = buildLayers(input({ frameKey: 1, ghostKey: 1 }))
+  const b = buildLayers(input({ frameKey: 2, ghostKey: 2 }))
+  expect(ids(a)).toContain('ghosts')
   expect(ids(b)).toEqual(ids(a))
   b.forEach((layer, i) => expect(layer.props.data).toBe(a[i]?.props.data))
 })

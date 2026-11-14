@@ -3,22 +3,9 @@
  * object (checkpoint, HOS stop, origin/destination) has details to show. The scene installs it as
  * the overlay's root `onHover`/`onClick`, so layers carry no handlers of their own.
  */
-import type { HosStop } from '../../lib/api/types'
 import type { MapCheckpoint } from '../../lib/plan/decodePlan'
 import type { MapPick } from '../../store/planStore'
-
-/** Data objects of the pickable layers that are not plain routes or checkpoints. */
-export interface StopDatum {
-  routeId: string
-  stop: HosStop
-  position: [number, number]
-}
-
-export interface PlaceDatum {
-  role: 'origin' | 'destination'
-  label: string
-  position: [number, number]
-}
+import type { PlaceDatum, StopDatum } from './markers'
 
 export interface PickInput {
   layer?: { id: string } | null

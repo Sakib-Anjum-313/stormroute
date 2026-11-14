@@ -4,10 +4,12 @@
  * heatmap color changes through `updateTriggers` and a reused blend buffer, never new data.
  */
 import type { Layer } from '@deck.gl/core'
-import { PathLayer, ScatterplotLayer, SolidPolygonLayer } from '@deck.gl/layers'
+import { IconLayer, PathLayer, ScatterplotLayer, SolidPolygonLayer } from '@deck.gl/layers'
 
 import type { IntervalMi } from '../../lib/api/types'
 import type { DecodedPlan, MapCheckpoint, MapRoute, MapSegment } from '../../lib/plan/decodePlan'
+import { ICON_SIZE, type IconAtlas } from './iconAtlas'
+import type { GhostDatum, LabelDatum, PlaceDatum, StopDatum } from './markers'
 
 export interface HeatCell {
   polygon: [number, number][]
@@ -29,6 +31,13 @@ export interface LayerInput {
   beforeId: string | undefined
   /** The checkpoint whose popup is open (drawn with a ring). */
   pinnedCheckpoint: MapCheckpoint | null
+  atlas: IconAtlas
+  labels: readonly LabelDatum[]
+  stops: readonly StopDatum[]
+  places: readonly PlaceDatum[]
+  /** Positions rewritten in place each slider frame; `ghostKey` tells deck.gl to re-read them. */
+  ghosts: readonly GhostDatum[]
+  ghostKey: number
 }
 
 type Rgba = [number, number, number, number]
@@ -56,6 +65,12 @@ const getSegmentColor = (d: MapSegment) => d.color
 const getCheckpointPosition = (d: MapCheckpoint) => d.position
 const getCheckpointColor = (d: MapCheckpoint) => d.color
 const getCellPolygon = (d: HeatCell) => d.polygon
+const getMarkerPosition = (d: { position: [number, number] }) => d.position
+const getLabelIcon = (d: LabelDatum) => d.icon
+const getStopIcon = (d: StopDatum) => (d.stop.kind === 'rest' ? 'stop-rest' : 'stop-break')
+const getPlaceIcon = (d: PlaceDatum) => (d.role === 'origin' ? 'pin-origin' : 'pin-destination')
+const getGhostIcon = (d: GhostDatum) => d.icon
+const getGhostSize = (d: GhostDatum) => (d.visible ? ICON_SIZE.ghost : 0)
 
 const pinnedSingletons = new WeakMap<MapCheckpoint, MapCheckpoint[]>()
 function pinnedSingleton(checkpoint: MapCheckpoint): MapCheckpoint[] {
@@ -231,6 +246,62 @@ export function buildLayers(input: LayerInput): Layer[] {
         stroked: true,
         lineWidthUnits: 'pixels',
         getLineWidth: 3,
+        pickable: true,
+      }),
+    )
+  }
+
+  const { atlas } = input
+  const icons = { iconAtlas: atlas.url, iconMapping: atlas.mapping, sizeUnits: 'pixels' as const }
+  if (plan && input.labels.length > 0) {
+    layers.push(
+      new IconLayer<LabelDatum>({
+        id: 'route-labels',
+        data: input.labels,
+        ...icons,
+        getIcon: getLabelIcon,
+        getPosition: getMarkerPosition,
+        getSize: ICON_SIZE.label,
+        pickable: true,
+      }),
+    )
+  }
+  if (input.stops.length > 0) {
+    layers.push(
+      new IconLayer<StopDatum>({
+        id: 'hos-stops',
+        data: input.stops,
+        ...icons,
+        getIcon: getStopIcon,
+        getPosition: getMarkerPosition,
+        getSize: ICON_SIZE.stop,
+        pickable: true,
+      }),
+    )
+  }
+  if (input.places.length > 0) {
+    layers.push(
+      new IconLayer<PlaceDatum>({
+        id: 'places',
+        data: input.places,
+        ...icons,
+        getIcon: getPlaceIcon,
+        getPosition: getMarkerPosition,
+        getSize: ICON_SIZE.pin,
+        pickable: true,
+      }),
+    )
+  }
+  if (input.ghosts.length > 0) {
+    layers.push(
+      new IconLayer<GhostDatum>({
+        id: 'ghosts',
+        data: input.ghosts,
+        ...icons,
+        getIcon: getGhostIcon,
+        getPosition: getMarkerPosition,
+        getSize: getGhostSize,
+        updateTriggers: { getPosition: input.ghostKey, getSize: input.ghostKey },
         pickable: true,
       }),
     )

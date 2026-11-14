@@ -85,19 +85,44 @@ function vertexAtOrBefore(cum: Float64Array, mile: number): number {
   return lo
 }
 
-/** Position on the path at `mile`, linearly interpolated within its segment. */
-export function pointAtMile(path: Float64Array, cum: Float64Array, mile: number): [number, number] {
+/**
+ * Position on the path at `mile`, linearly interpolated within its segment, written into
+ * `out[0..1]`. Allocation-free: the truck ghosts call it on every slider frame.
+ */
+export function pointAtMileInto(
+  path: Float64Array,
+  cum: Float64Array,
+  mile: number,
+  out: [number, number],
+): void {
   const last = cum.length - 1
-  if (last < 0) return [Number.NaN, Number.NaN]
-  if (mile <= 0 || last === 0) return [at(path, 0), at(path, 1)]
-  if (mile >= at(cum, last)) return [at(path, last * 2), at(path, last * 2 + 1)]
+  if (last < 0) {
+    out[0] = Number.NaN
+    out[1] = Number.NaN
+    return
+  }
+  if (mile <= 0 || last === 0) {
+    out[0] = at(path, 0)
+    out[1] = at(path, 1)
+    return
+  }
+  if (mile >= at(cum, last)) {
+    out[0] = at(path, last * 2)
+    out[1] = at(path, last * 2 + 1)
+    return
+  }
   const i = vertexAtOrBefore(cum, mile)
   const seg = at(cum, i + 1) - at(cum, i)
   const f = seg > 0 ? (mile - at(cum, i)) / seg : 0
-  return [
-    at(path, i * 2) + (at(path, i * 2 + 2) - at(path, i * 2)) * f,
-    at(path, i * 2 + 1) + (at(path, i * 2 + 3) - at(path, i * 2 + 1)) * f,
-  ]
+  out[0] = at(path, i * 2) + (at(path, i * 2 + 2) - at(path, i * 2)) * f
+  out[1] = at(path, i * 2 + 1) + (at(path, i * 2 + 3) - at(path, i * 2 + 1)) * f
+}
+
+/** Position on the path at `mile`, linearly interpolated within its segment. */
+export function pointAtMile(path: Float64Array, cum: Float64Array, mile: number): [number, number] {
+  const out: [number, number] = [0, 0]
+  pointAtMileInto(path, cum, mile, out)
+  return out
 }
 
 /**

@@ -19,6 +19,18 @@ import {
   type PlanState,
 } from '../../store/planStore'
 import { buildHeatCells, buildLayers, type HeatCell } from './buildLayers'
+import { getIconAtlas } from './iconAtlas'
+import {
+  buildGhosts,
+  buildLabels,
+  buildPlaces,
+  buildStops,
+  updateGhosts,
+  type GhostDatum,
+  type LabelDatum,
+  type PlaceDatum,
+  type StopDatum,
+} from './markers'
 import { interpretPick, type PickInput } from './picking'
 
 /** Read by the perf script and handy in DevTools; holds no state the app depends on. */
@@ -49,6 +61,15 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
   let heatCells: HeatCell[] = []
   let heatColors = new Uint8ClampedArray(0)
   let fittedCount = 0
+  let markerPlan: DecodedPlan | null = null
+  let markerRoutes: readonly MapRoute[] = []
+  let markerRequest: PlanState['request'] = null
+  let stops: StopDatum[] = []
+  let labels: LabelDatum[] = []
+  let places: PlaceDatum[] = []
+  let ghosts: GhostDatum[] = []
+  let ghostKey = 0
+  let ghostsDirty = true
   let pinnedFor: PlanState['pinnedPick'] = null
   let pinnedCheckpoint: MapCheckpoint | null = null
   const debug: SceneDebug = { frameKey: 0, renders: 0, layers: [], map }
@@ -85,6 +106,29 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
     )
   }
 
+  /** Marker data per plan/routes/request; per frame only the ghost positions move. */
+  function syncMarkers(state: PlanState) {
+    if (state.plan !== markerPlan) {
+      markerPlan = state.plan
+      stops = buildStops(markerPlan)
+      ghosts = buildGhosts(markerPlan)
+      ghostsDirty = true
+    }
+    if (state.routes !== markerRoutes) {
+      markerRoutes = state.routes
+      labels = buildLabels(markerRoutes)
+    }
+    if (state.request !== markerRequest) {
+      markerRequest = state.request
+      places = buildPlaces(markerRequest)
+    }
+    if (ghostsDirty && markerPlan) {
+      updateGhosts(ghosts, markerPlan.heatmap.baseTimeUtcS + state.hour * 3600)
+      ghostKey++
+    }
+    ghostsDirty = false
+  }
+
   /** The drawn checkpoint behind the open popup; looked up only when the popup changes. */
   function syncPinned(state: PlanState) {
     if (state.pinnedPick === pinnedFor) return
@@ -105,6 +149,7 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
     syncHeatmap(state)
     fitRoutes(state.routes)
     syncPinned(state)
+    syncMarkers(state)
     const layers = buildLayers({
       routes: state.routes,
       plan: state.plan,
@@ -116,6 +161,12 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
       frameKey,
       beforeId,
       pinnedCheckpoint,
+      atlas: getIconAtlas(),
+      labels,
+      stops,
+      places,
+      ghosts,
+      ghostKey,
     })
     overlay.setProps({ layers })
     debug.layers = layers.map((l) => l.id)
@@ -128,7 +179,10 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
   }
 
   const unsubscribe = usePlanStore.subscribe((state, prev) => {
-    if (state.hour !== prev.hour) heatDirty = true
+    if (state.hour !== prev.hour) {
+      heatDirty = true
+      ghostsDirty = true
+    }
     if (
       state.hour !== prev.hour ||
       state.plan !== prev.plan ||
@@ -136,7 +190,8 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
       state.interval !== prev.interval ||
       state.hoveredRouteId !== prev.hoveredRouteId ||
       state.selectedRouteId !== prev.selectedRouteId ||
-      state.pinnedPick !== prev.pinnedPick
+      state.pinnedPick !== prev.pinnedPick ||
+      state.request !== prev.request
     ) {
       schedule()
     }
