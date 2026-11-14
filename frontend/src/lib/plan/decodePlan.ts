@@ -7,17 +7,27 @@ import { decodeHeatmap, type DecodedHeatmap } from '../api/decodeHeatmap'
 import {
   INTERVALS_MI,
   type Checkpoint,
+  type HosStop,
   type IntervalMi,
   type Plan,
   type RiskLevel,
   type StreamRoute,
 } from '../api/types'
+import { routeHex, routeRgb } from './routeColors'
 import { cumulativeMiles, decodePolyline6, slicePath } from '../geo/geo'
 import { levelRgb, type Rgb } from '../risk/levels'
 
 export interface MapRoute {
   id: string
   label: string
+  /** Position in provider order (A = 0); picks the identity color. */
+  index: number
+  source: StreamRoute['source']
+  summary: StreamRoute['summary']
+  stops: HosStop[]
+  /** Identity color (not a risk color). */
+  hex: string
+  rgb: Rgb
   /** Flat `[lon, lat, ...]`. */
   path: Float64Array
   /** Cumulative miles per vertex, normalized to `summary.distance_mi`. */
@@ -53,11 +63,17 @@ export interface DecodedPlan {
 }
 
 export function decodeRoutes(routes: readonly StreamRoute[]): MapRoute[] {
-  return routes.map((route) => {
+  return routes.map((route, index) => {
     const path = decodePolyline6(route.geometry.value)
     return {
       id: route.id,
       label: route.label,
+      index,
+      source: route.source,
+      summary: route.summary,
+      stops: route.stops,
+      hex: routeHex(index),
+      rgb: routeRgb(index),
       path,
       cumMi: cumulativeMiles(path, route.summary.distance_mi),
       distanceMi: route.summary.distance_mi,

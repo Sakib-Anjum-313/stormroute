@@ -29,7 +29,7 @@ export async function runPlan(request: PlanRequest): Promise<void> {
   lastRequest = request
   const controller = new AbortController()
   inFlight = controller
-  startPlan()
+  startPlan(request)
   const isCurrent = () => inFlight === controller
   try {
     await streamPlan(request, {

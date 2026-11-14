@@ -8,13 +8,15 @@
 import { create } from 'zustand'
 
 import type { ApiError } from '../lib/api/errors'
-import type { IntervalMi, PlanStreamEvent } from '../lib/api/types'
+import type { IntervalMi, PlanRequest, PlanStreamEvent } from '../lib/api/types'
 import { decodePlan, decodeRoutes, type DecodedPlan, type MapRoute } from '../lib/plan/decodePlan'
 
 export type Phase = 'idle' | 'routing' | 'weather' | 'done' | 'error'
 
 export interface PlanState {
   phase: Phase
+  /** The request being planned (origin/destination pins, HOS flag while streaming). */
+  request: PlanRequest | null
   /** Weather batches done/total while the stream runs. */
   progress: { done: number; total: number } | null
   error: ApiError | null
@@ -32,6 +34,7 @@ export interface PlanState {
 
 export const initialPlanState: PlanState = {
   phase: 'idle',
+  request: null,
   progress: null,
   error: null,
   originTz: null,
@@ -47,9 +50,9 @@ export const initialPlanState: PlanState = {
 export const usePlanStore = create<PlanState>()(() => ({ ...initialPlanState }))
 
 /** A new submit: clear the previous plan and show the routing stage. */
-export function startPlan(): void {
+export function startPlan(request: PlanRequest | null = null): void {
   const { interval } = usePlanStore.getState()
-  usePlanStore.setState({ ...initialPlanState, interval, phase: 'routing' })
+  usePlanStore.setState({ ...initialPlanState, interval, request, phase: 'routing' })
 }
 
 /** Apply one NDJSON event. `result` decodes everything the map needs, once. */

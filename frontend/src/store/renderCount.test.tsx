@@ -4,6 +4,7 @@ import { Profiler, type ReactNode } from 'react'
 
 import { TimeSlider } from '../features/heatmap/TimeSlider'
 import { PlanStatus } from '../features/routes/PlanStatus'
+import { RouteList } from '../features/routes/RouteList'
 import { TripForm } from '../features/trip-form/TripForm'
 import { makePlan } from '../test/makePlan'
 import {
@@ -16,11 +17,12 @@ import {
 
 /**
  * map-performance rule 3: a slider tick writes `hour` to the store and must not re-render the
- * form, the plan panel or even the slider itself (its label is written to the DOM directly).
+ * form, the plan panel, the route cards or even the slider itself (its label is written to the DOM
+ * directly).
  */
 test('slider updates do not re-render unrelated components', () => {
   usePlanStore.setState({ ...initialPlanState })
-  const commits: Record<string, number> = { form: 0, status: 0, slider: 0 }
+  const commits: Record<string, number> = { form: 0, status: 0, slider: 0, routes: 0 }
   const track = (id: string, children: ReactNode) => (
     <Profiler
       id={id}
@@ -36,6 +38,7 @@ test('slider updates do not re-render unrelated components', () => {
       {track('form', <TripForm onSubmit={() => {}} />)}
       {track('status', <PlanStatus />)}
       {track('slider', <TimeSlider />)}
+      {track('routes', <RouteList />)}
     </QueryClientProvider>,
   )
 
@@ -57,4 +60,5 @@ test('slider updates do not re-render unrelated components', () => {
   act(() => setCheckpointInterval(10))
   expect(commits.status).toBe((before.status ?? 0) + 1)
   expect(commits.form).toBe(before.form)
+  expect(commits.routes).toBe((before.routes ?? 0) + 1)
 })

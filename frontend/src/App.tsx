@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { TimeSlider } from './features/heatmap/TimeSlider'
 import { Legend } from './features/map/Legend'
 import { PlanStatus } from './features/routes/PlanStatus'
+import { RouteList } from './features/routes/RouteList'
 import { runPlan } from './features/trip-form/runPlan'
 import { TripForm } from './features/trip-form/TripForm'
 import type { PlanRequest } from './lib/api/types'
@@ -24,6 +25,7 @@ export default function App() {
         <section aria-label="Plan">
           <PlanStatus />
         </section>
+        <RouteList />
         <footer className="mt-auto text-[11px] text-slate-400">
           Routing by TomTom. Weather data by Open-Meteo.com (CC BY 4.0).
         </footer>

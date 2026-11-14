@@ -85,7 +85,6 @@ export function PlanStatus() {
 
   if (!plan) return null
   const recommendation = plan.recommendation[interval]
-  const recommended = plan.routes.find((r) => r.id === recommendation.route_id)
   return (
     <div className="space-y-3 text-sm">
       <fieldset className="flex gap-1">
@@ -102,11 +101,6 @@ export function PlanStatus() {
           </button>
         ))}
       </fieldset>
-      <p data-testid="plan-summary" className="text-slate-700">
-        {plan.routes.length} routes. Recommended:{' '}
-        <strong>{recommended?.label ?? recommendation.route_id}</strong>
-        {recommendation.decisive_step && ` (decided by ${recommendation.decisive_step})`}.
-      </p>
       {plan.warnings.map((w) => (
         <output
           key={w.code}

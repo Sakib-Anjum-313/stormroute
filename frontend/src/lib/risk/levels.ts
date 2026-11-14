@@ -24,6 +24,13 @@ export const RISK_LABEL: Record<RiskLevel, string> = {
   NO_TRAVEL: 'No Travel',
 }
 
+export const NO_DATA_LABEL = 'No data'
+
+/** Label for a level, or "No data" for a checkpoint without weather (`null` level). */
+export function levelLabel(level: RiskLevel | null): string {
+  return level === null ? NO_DATA_LABEL : RISK_LABEL[level]
+}
+
 export type Rgb = readonly [number, number, number]
 
 /** PLAN section 7 palette. */
