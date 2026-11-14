@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from trips.domain.checkpoints import build_checkpoints
-from trips.domain.eta import driving_s_at, time_anchors, vertex_times_s
+from trips.domain.eta import distance_m_at, driving_s_at, time_anchors, vertex_times_s
 from trips.domain.geometry import cumulative_m
 from trips.domain.resample import route_geom
 from trips.domain.types import LatLon, ProgressEntry, RouteGeom
@@ -97,3 +97,22 @@ def test_recorded_fixture_anchors_hit_every_progress_entry(
         assert driving_s_at(anchors, d) == pytest.approx(entry["travelTimeInSeconds"], abs=1e-6)
         # Our normalized haversine axis stays close to TomTom's own distances.
         assert abs(d - entry["distanceInMeters"]) < 0.005 * geom.length_m
+
+
+@pytest.mark.parametrize(
+    ("driving_s", "expected_m"),
+    [(-5, 0.0), (0, 0.0), (30, 1000.0), (60, 2000.0), (180, 3000.0), (300, 4000.0), (999, 4000.0)],
+)
+def test_distance_at_inverts_driving_time(driving_s: float, expected_m: float) -> None:
+    anchors = time_anchors(hand_route(HAND_PROGRESS))
+    assert distance_m_at(anchors, driving_s) == pytest.approx(expected_m)
+    if 0 <= driving_s <= 300:
+        assert driving_s_at(anchors, distance_m_at(anchors, driving_s)) == pytest.approx(driving_s)
+
+
+def test_distance_at_skips_zero_duration_gaps() -> None:
+    # A stretch with no travel time (e.g. a ferry ramp) maps to its earliest distance.
+    progress = [ProgressEntry(0, 0, 0), ProgressEntry(2, 2000, 60), ProgressEntry(3, 3000, 60)]
+    anchors = time_anchors(hand_route([*progress, ProgressEntry(4, 4000, 120)]))
+    assert distance_m_at(anchors, 60) == pytest.approx(2000.0)
+    assert distance_m_at(anchors, 90) == pytest.approx(3500.0)

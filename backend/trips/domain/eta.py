@@ -8,7 +8,7 @@ is the method TomTom's docs prescribe. Speed is assumed constant inside a gap.
 
 from __future__ import annotations
 
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 
 from trips.domain.types import RouteGeom
@@ -63,3 +63,22 @@ def vertex_times_s(geom: RouteGeom, anchors: TimeAnchors | None = None) -> list[
     """Cumulative driving seconds at every polyline vertex."""
     anchors = anchors or time_anchors(geom)
     return [driving_s_at(anchors, d) for d in geom.cum_m]
+
+
+def distance_m_at(anchors: TimeAnchors, driving_s: float) -> float:
+    """Distance reached after ``driving_s`` of driving (the inverse of ``driving_s_at``).
+
+    Used to place HOS stops on the map. Inside a zero-duration gap (two anchors with the same
+    time) the earliest distance is returned; values outside the route are clamped.
+    """
+    dist, time = anchors.distance_m, anchors.driving_s
+    if driving_s <= time[0]:
+        return dist[0]
+    if driving_s >= time[-1]:
+        return dist[-1]
+    i = bisect_left(time, driving_s)
+    if time[i] == driving_s:
+        return dist[i]
+    span = time[i] - time[i - 1]  # > 0 because time[i - 1] < driving_s < time[i]
+    frac = (driving_s - time[i - 1]) / span
+    return dist[i - 1] + (dist[i] - dist[i - 1]) * frac
