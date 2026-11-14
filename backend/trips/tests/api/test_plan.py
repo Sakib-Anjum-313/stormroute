@@ -533,6 +533,39 @@ def test_plan_throttle_is_429_with_retry_after(api: Api, upstreams: Upstreams) -
     assert error["retry_after_s"] >= 1
 
 
+def test_plan_throttle_ignores_spoofed_forwarded_for_by_default(
+    api: Api, upstreams: Upstreams
+) -> None:
+    for i in range(10):
+        assert api(plan_body(), HTTP_X_FORWARDED_FOR=f"203.0.113.{i}").status_code == 200
+
+    assert api(plan_body(), HTTP_X_FORWARDED_FOR="203.0.113.99").status_code == 429
+
+
+@pytest.mark.parametrize(
+    ("forwarded_for", "throttled"),
+    [
+        # The client prepends spoofed entries; the proxy appends the real address last.
+        ("198.51.100.1, 192.0.2.7", True),
+        ("192.0.2.8", False),
+    ],
+)
+def test_plan_throttle_keys_on_the_proxy_appended_entry(
+    api: Api,
+    upstreams: Upstreams,
+    settings: Any,
+    forwarded_for: str,
+    throttled: bool,
+) -> None:
+    settings.REST_FRAMEWORK = {**settings.REST_FRAMEWORK, "NUM_PROXIES": 1}
+    for i in range(10):
+        assert api(plan_body(), HTTP_X_FORWARDED_FOR=f"10.0.0.{i}, 192.0.2.7").status_code == 200
+
+    response = api(plan_body(), HTTP_X_FORWARDED_FOR=forwarded_for)
+
+    assert (response.status_code == 429) is throttled
+
+
 # --- secrets ---------------------------------------------------------------------------
 
 

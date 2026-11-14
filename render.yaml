@@ -23,6 +23,9 @@ services:
         sync: false
       - key: PLAN_FIXTURES
         value: "0"
+      # Proxy hops in front of the app (docs/DEPLOY.md, "Proxy hops"); prompted at blueprint creation.
+      - key: DRF_NUM_PROXIES
+        sync: false
 
   - type: web
     name: spotter-web

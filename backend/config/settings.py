@@ -22,6 +22,7 @@ env = environ.Env(
     PLAN_FIXTURES=(bool, False),
     GIT_SHA=(str, "dev"),
     TOMTOM_BASE_URL=(str, "https://api.tomtom.com"),
+    DRF_NUM_PROXIES=(int, 0),
 )
 environ.Env.read_env(BASE_DIR / ".env", overwrite=False)
 
@@ -88,6 +89,9 @@ REST_FRAMEWORK = {
     "URL_FORMAT_OVERRIDE": None,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_RATES": {"plan": "10/min", "geocode": "60/min"},
+    # Proxy hops in front of the app. 0 ignores X-Forwarded-For (a client can set any value);
+    # n trusts the n-th entry from the right, the one the outermost proxy appended.
+    "NUM_PROXIES": env("DRF_NUM_PROXIES"),
     "EXCEPTION_HANDLER": "trips.api.errors.exception_handler",
 }
 
