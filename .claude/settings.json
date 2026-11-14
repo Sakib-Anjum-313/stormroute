@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make setup)",
+      "Bash(make dev)",
+      "Bash(make test)",
+      "Bash(make test-backend)",
+      "Bash(make test-frontend)",
+      "Bash(make lint)",
+      "Bash(make fmt)",
+      "Bash(make e2e)",
+      "Bash(make api-types)",
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run mypy:*)",
+      "Bash(uv run --directory backend pytest:*)",
+      "Bash(uv run --directory backend ruff:*)",
+      "Bash(uv run --directory backend mypy:*)",
+      "Bash(uv run --directory backend python manage.py check:*)",
+      "Bash(uv run --directory backend python manage.py spectacular:*)",
+      "Bash(uv run --directory backend python manage.py runserver:*)",
+      "Bash(pnpm -C frontend install:*)",
+      "Bash(pnpm -C frontend dev:*)",
+      "Bash(pnpm -C frontend test:*)",
+      "Bash(pnpm -C frontend lint:*)",
+      "Bash(pnpm -C frontend typecheck:*)",
+      "Bash(pnpm -C frontend format:*)",
+      "Bash(pnpm -C frontend build:*)",
+      "Bash(pnpm -C frontend perf:slider:*)",
+      "Bash(pnpm -C frontend exec playwright test:*)",
+      "Bash(pnpm -C frontend exec vitest:*)",
+      "Bash(pnpm -C frontend exec tsc:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(curl -s http://localhost:8000/*)"
+    ],
+    "deny": [
+      "Read(./backend/.env)",
+      "Read(./.env)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ]
+  }
+}

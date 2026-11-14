@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--directory", "backend", "python", "manage.py", "runserver", "8000"],
+      "port": 8000,
+      "env": { "PLAN_FIXTURES": "1" }
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-C", "frontend", "dev", "--port", "5173"],
+      "port": 5173
+    }
+  ]
+}

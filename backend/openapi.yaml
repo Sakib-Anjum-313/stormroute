@@ -1,0 +1,41 @@
+openapi: 3.0.3
+info:
+  title: Spotter Weather-Aware Truck Routing API
+  version: 0.1.0
+paths:
+  /api/healthz:
+    get:
+      operationId: healthz
+      description: Liveness probe. Makes no upstream calls, so keep-warm pings cost
+        no quota.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+          description: ''
+  /api/healthz/stream:
+    get:
+      operationId: healthz_stream
+      description: |-
+        Emits 5 NDJSON ticks 300 ms apart.
+
+        Used to check that streaming survives gunicorn, gzip and the hosting proxy unbuffered.
+      tags:
+      - stream
+      responses:
+        '200':
+          description: NDJSON ticks
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+        version:
+          type: string
+      required:
+      - status
+      - version

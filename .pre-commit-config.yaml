@@ -1,0 +1,32 @@
+# Install once with: uvx pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+  - repo: local
+    hooks:
+      - id: frontend-format
+        name: prettier (frontend)
+        entry: pnpm -C frontend exec prettier --write
+        language: system
+        files: ^frontend/
+        types_or: [ts, tsx, javascript, json, css, html, markdown]
+        pass_filenames: false
+      - id: frontend-lint
+        name: oxlint (frontend)
+        entry: pnpm -C frontend lint
+        language: system
+        files: ^frontend/src/
+        pass_filenames: false
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
