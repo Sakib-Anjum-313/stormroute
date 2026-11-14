@@ -6,6 +6,7 @@ import base64
 import gzip
 import json
 import math
+from collections import Counter
 from collections.abc import Callable
 from itertools import pairwise
 from typing import Any
@@ -313,8 +314,11 @@ def test_open_meteo_429_is_retried_then_503_with_retry_after(
     assert error["code"] == "UPSTREAM_RATE_LIMITED"
     assert error["retry_after_s"] == 42
     assert response["Retry-After"] == "42"
-    # Every batch is tried three times (two retries) before giving up.
-    assert upstreams.weather.call_count % 3 == 0
+    # A batch is tried three times (two retries) before the plan gives up. Other batches may
+    # still be retrying in background threads when the response returns, so the total is not a
+    # multiple of 3: count attempts per batch instead.
+    attempts = Counter(form(call.request)["latitude"] for call in list(upstreams.weather.calls))
+    assert max(attempts.values()) == 3
 
 
 def test_open_meteo_429_recovers_within_the_retries(api: Api, upstreams: Upstreams) -> None:
