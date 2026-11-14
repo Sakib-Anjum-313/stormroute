@@ -209,7 +209,7 @@ The smoke script builds the Denver → Salt Lake City 45,000 lb request with `de
 | Layer | Setup | Notes |
 |---|---|---|
 | Primary | cron-job.org → new job → `GET $API/api/healthz`, every **10 min**, timeout 30 s, notify by email after 2 failures | Free, minute-level schedules. The email doubles as uptime alerting |
-| Backup | `.github/workflows/keep-warm.yml` (1.4) | Best effort |
+| Backup | `.github/workflows/keep-warm.yml` (1.4). After the first deploy, set the repo variable `API_URL` (GitHub → Settings → Secrets and variables → Actions → Variables) to the API URL. The job stays off until then | Best effort |
 | UX fallback | the SPA's cold-API banner (built in M4) | Covers a pinger outage |
 
 Hours budget: one always-on free service uses at most 744 h in a 31-day month, under the 750 free instance-hours per workspace (https://render.com/docs/free). **Don't run any other free web service in this workspace**, or both get suspended when the hours run out. Static sites don't use instance hours.
