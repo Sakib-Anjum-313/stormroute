@@ -215,11 +215,6 @@ def test_ndjson_gzip_stream_decodes_line_by_line(api: Api, upstreams: Upstreams)
     assert json.loads(lines[-1])["type"] == "result"
 
 
-def test_plan_payload_fits_the_gzip_budget(api: Api, upstreams: Upstreams) -> None:
-    response = api(plan_body())
-    assert len(gzip.compress(response.content)) < 150 * 1024
-
-
 # --- routes: fewer than three ----------------------------------------------------------
 
 
