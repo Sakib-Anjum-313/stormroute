@@ -6,9 +6,9 @@ import { defineConfig } from '@playwright/test'
  * End-to-end specs (PLAN section 9) against the fixture backend (`PLAN_FIXTURES=1`, no network to
  * TomTom or Open-Meteo) and the production build served by `vite preview`.
  *
- * The API runs on its own port and is never reused, so every run starts with an empty throttle
- * cache: the backend allows 10 plans/min/IP and the whole suite submits 8 plans. Keep it under 10,
- * or space the plans out, when adding specs. That is also why there are no retries.
+ * The API runs on its own port and is never reused, and its plan throttle is raised
+ * (`PLAN_THROTTLE_RATE`), so the number of plans the suite submits is not capped by the
+ * production limit of 10/min/IP. The backend tests cover that limit.
  *
  * Local runs use the installed Google Chrome (no browser download); CI uses Playwright's bundled
  * Chromium (`pnpm exec playwright install --with-deps chromium`).
@@ -45,7 +45,7 @@ export default defineConfig({
       command: `uv run python manage.py runserver ${API_PORT} --noreload`,
       cwd: BACKEND_DIR,
       url: `http://localhost:${API_PORT}/api/healthz`,
-      env: { PLAN_FIXTURES: '1', DJANGO_DEBUG: '1' },
+      env: { PLAN_FIXTURES: '1', DJANGO_DEBUG: '1', PLAN_THROTTLE_RATE: '1000/min' },
       reuseExistingServer: false,
       timeout: 60_000,
     },
