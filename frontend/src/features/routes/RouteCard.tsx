@@ -47,6 +47,8 @@ export function RouteCard({
     <button
       type="button"
       aria-pressed={selected}
+      aria-label={`${route.label}${recommended ? ', recommended' : ''}`}
+      aria-describedby={`route-${route.id}-details`}
       data-testid={`route-card-${route.id}`}
       onClick={() => selectRoute(route.id)}
       onMouseEnter={() => setHoveredRoute(route.id)}
@@ -90,59 +92,61 @@ export function RouteCard({
         )}
       </span>
 
-      <span className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-2">
-        <span className="text-ink-3">Distance</span>
-        <span className="tabular-nums">{formatMiles(route.distanceMi)}</span>
-        <span className="text-ink-3">Duration</span>
-        <span className="tabular-nums">{durationText(route, applyHos)}</span>
-        <span className="text-ink-3">Arrives</span>
-        <span className="tabular-nums">{formatTime(route.summary.arrival_utc, originTz)}</span>
-      </span>
-
-      {aggregates ? (
-        <>
-          {(ntMi > 0 || severeMi > 0) && (
-            <span className="mt-2 flex flex-wrap gap-1.5">
-              {ntMi > 0 && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-semibold text-ink"
-                  style={{ borderColor: RISK_HEX.NO_TRAVEL }}
-                >
-                  <NoTravelIcon className="size-3" />
-                  No Travel {formatMiles(ntMi)}
-                </span>
-              )}
-              {severeMi > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-line-strong px-1.5 py-0.5 text-xs font-semibold text-ink">
-                  <LevelSwatch level="SEVERE" className="size-2" />
-                  Severe {formatMiles(severeMi)}
-                </span>
-              )}
-            </span>
-          )}
-          <span className="mt-2.5 block">
-            <MileageBar milesByLevel={aggregates.miles_by_level} />
-          </span>
-          <span className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-2">
-            <span>
-              Avg risk{' '}
-              <span className="font-semibold text-ink tabular-nums">
-                {formatAvgRisk(aggregates.avg_risk)}
-              </span>
-              <span className="text-ink-3"> / 4</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="text-ink-3">Worst</span>
-              <LevelChip level={aggregates.max_level} />
-            </span>
-          </span>
-        </>
-      ) : (
-        <span className="mt-3 block space-y-2" aria-hidden>
-          <span className="block h-2.5 animate-pulse rounded-full bg-surface-2" />
-          <span className="block h-3 w-2/3 animate-pulse rounded bg-surface-2" />
+      <span id={`route-${route.id}-details`} className="block">
+        <span className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-2">
+          <span className="text-ink-3">Distance</span>
+          <span className="tabular-nums">{formatMiles(route.distanceMi)}</span>
+          <span className="text-ink-3">Duration</span>
+          <span className="tabular-nums">{durationText(route, applyHos)}</span>
+          <span className="text-ink-3">Arrives</span>
+          <span className="tabular-nums">{formatTime(route.summary.arrival_utc, originTz)}</span>
         </span>
-      )}
+
+        {aggregates ? (
+          <>
+            {(ntMi > 0 || severeMi > 0) && (
+              <span className="mt-2 flex flex-wrap gap-1.5">
+                {ntMi > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-semibold text-ink"
+                    style={{ borderColor: RISK_HEX.NO_TRAVEL }}
+                  >
+                    <NoTravelIcon className="size-3" />
+                    No Travel {formatMiles(ntMi)}
+                  </span>
+                )}
+                {severeMi > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-line-strong px-1.5 py-0.5 text-xs font-semibold text-ink">
+                    <LevelSwatch level="SEVERE" className="size-2" />
+                    Severe {formatMiles(severeMi)}
+                  </span>
+                )}
+              </span>
+            )}
+            <span className="mt-2.5 block">
+              <MileageBar milesByLevel={aggregates.miles_by_level} />
+            </span>
+            <span className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-2">
+              <span>
+                Avg risk{' '}
+                <span className="font-semibold text-ink tabular-nums">
+                  {formatAvgRisk(aggregates.avg_risk)}
+                </span>
+                <span className="text-ink-3"> / 4</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="text-ink-3">Worst</span>
+                <LevelChip level={aggregates.max_level} />
+              </span>
+            </span>
+          </>
+        ) : (
+          <span className="mt-3 block space-y-2" aria-hidden>
+            <span className="block h-2.5 animate-pulse rounded-full bg-surface-2" />
+            <span className="block h-3 w-2/3 animate-pulse rounded bg-surface-2" />
+          </span>
+        )}
+      </span>
     </button>
   )
 }

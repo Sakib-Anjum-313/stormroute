@@ -103,6 +103,10 @@ function SheetTabs({ tab, onChange }: { tab: TabId; onChange: (tab: TabId) => vo
   )
 }
 
+/**
+ * The panel comes first in the DOM so keyboard order is form, results, then map; on phones the map
+ * is moved above the sheet visually with `order-first`.
+ */
 export default function App() {
   const mobile = useMediaQuery(MOBILE_QUERY)
   const [tab, setTab] = useState<TabId>('trip')
@@ -119,27 +123,7 @@ export default function App() {
 
   return (
     <div className="flex h-dvh flex-col bg-canvas text-ink md:flex-row">
-      <main className="relative h-[55dvh] shrink-0 md:order-2 md:h-full md:min-w-0 md:flex-1">
-        <Suspense
-          fallback={<div className="absolute inset-0 animate-pulse bg-surface-2" aria-hidden />}
-        >
-          <MapView />
-        </Suspense>
-        <div className="pointer-events-none absolute top-2 left-2 md:hidden">
-          <Legend compact />
-        </div>
-        <ThemeToggle className="absolute top-[76px] right-2.5 md:hidden" />
-        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end gap-3 md:inset-x-3 md:bottom-8">
-          <div className="max-w-xl min-w-0 flex-1">
-            <TimeSlider />
-          </div>
-          <div className="ml-auto hidden md:block">
-            <Legend />
-          </div>
-        </div>
-      </main>
-
-      <aside className="flex min-h-0 flex-1 flex-col border-t border-line bg-surface shadow-[0_-4px_12px_rgb(0_0_0/0.06)] md:order-1 md:w-[400px] md:flex-none md:border-t-0 md:border-r md:shadow-none">
+      <aside className="flex min-h-0 flex-1 flex-col border-t border-line bg-surface shadow-[0_-4px_12px_rgb(0_0_0/0.06)] md:w-[400px] md:flex-none md:border-t-0 md:border-r md:shadow-none">
         <header className="hidden items-start justify-between px-5 pt-5 md:flex">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Spotter</h1>
@@ -169,6 +153,26 @@ export default function App() {
           </footer>
         </div>
       </aside>
+
+      <main className="relative order-first h-[55dvh] shrink-0 md:order-none md:h-full md:min-w-0 md:flex-1">
+        <Suspense
+          fallback={<div className="absolute inset-0 animate-pulse bg-surface-2" aria-hidden />}
+        >
+          <MapView />
+        </Suspense>
+        <div className="pointer-events-none absolute top-2 left-2 md:hidden">
+          <Legend compact />
+        </div>
+        <ThemeToggle className="absolute top-[76px] right-2.5 md:hidden" />
+        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end gap-3 md:inset-x-3 md:bottom-8">
+          <div className="max-w-xl min-w-0 flex-1">
+            <TimeSlider />
+          </div>
+          <div className="ml-auto hidden md:block">
+            <Legend />
+          </div>
+        </div>
+      </main>
     </div>
   )
 }

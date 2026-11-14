@@ -103,3 +103,10 @@ body {
 .dark .maplibregl-ctrl-attrib-button {
   filter: invert(0.9);
 }
+
+/* The map canvas takes keyboard focus (arrow keys pan, +/- zoom): show where it is. The canvas
+   carries an inline `outline: none`, hence !important. */
+.maplibregl-map .maplibregl-canvas:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: -2px;
+}

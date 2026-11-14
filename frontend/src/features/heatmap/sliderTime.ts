@@ -6,7 +6,7 @@ export function formatSliderTime(
   baseUtcS: number,
   hour: number,
 ): string {
-  const time = formatter.format(new Date((baseUtcS + hour * 3600) * 1000))
+  const time = formatter.format(new Date((baseUtcS + hour * 3600) * 1000)).replace(', ', ' ')
   const offset = hour < 0.05 ? 'departure' : `+${hour < 10 ? hour.toFixed(1) : Math.round(hour)} h`
   return `${time} · ${offset}`
 }
