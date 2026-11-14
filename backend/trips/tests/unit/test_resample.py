@@ -103,3 +103,22 @@ def test_resample_properties(geom: RouteGeom, interval: float) -> None:
     for s in samples:
         nearest = min(point_segment_distance_m(s.pos, a, b) for a, b in segments)
         assert nearest <= 1.0
+
+
+@pytest.mark.parametrize(
+    ("length_mi", "interval_mi"),
+    [(500.0, 99.99999999999999), (500.0000000001, 50.0), (250.0 + 1e-9, 25.0)],
+)
+def test_mark_just_below_destination_merges_into_destination(
+    length_mi: float, interval_mi: float
+) -> None:
+    """Regression: float noise in L must not create a duplicate destination checkpoint."""
+    marks = mark_distances_m(length_mi * METERS_PER_MILE, interval_mi)
+
+    assert marks[-1] == length_mi * METERS_PER_MILE
+    assert marks[-1] - marks[-2] > 1.0
+    assert len(marks) == round(length_mi / interval_mi) + 1
+
+
+def test_very_short_route_keeps_origin_and_destination() -> None:
+    assert mark_distances_m(0.5, 10) == [0.0, 0.5]

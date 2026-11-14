@@ -10,18 +10,15 @@ from trips.domain.attribution import aggregate, owned_miles
 from trips.domain.checkpoints import build_checkpoints
 from trips.domain.geometry import METERS_PER_MILE
 from trips.domain.levels import Level
+from trips.domain.resample import mark_distances_m
 from trips.domain.risk import NO_DATA, Assessment, VariableLevels
 from trips.domain.types import RouteGeom
 from trips.tests.unit.conftest import straight_route
 
 
 def marks(length_mi: float, interval_mi: float) -> list[float]:
-    out = []
-    n = 0
-    while n * interval_mi < length_mi:
-        out.append(n * interval_mi)
-        n += 1
-    return [*out, length_mi]
+    """Production mark placement, in miles."""
+    return [m / METERS_PER_MILE for m in mark_distances_m(length_mi * METERS_PER_MILE, interval_mi)]
 
 
 def ok(level: Level) -> Assessment:
@@ -37,7 +34,8 @@ def test_skill_example_25_miles_at_10() -> None:
     [
         (50, 25, [12.5, 25, 12.5]),
         (5, 10, [2.5, 2.5]),
-        (10.0001, 10, [5, 5.00005, 0.00005]),
+        (10.001, 10, [5, 5.0005, 0.0005]),  # last gap 1.6 m > 1 m tolerance: kept
+        (10.0001, 10, [5.00005, 5.00005]),  # last gap 0.16 m: mark merged into destination
     ],
 )
 def test_owned_miles_table(length: float, interval: float, expected: list[float]) -> None:

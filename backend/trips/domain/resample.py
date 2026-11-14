@@ -44,8 +44,17 @@ def route_geom(
     )
 
 
+MARK_MERGE_TOLERANCE_M = 1.0
+"""An interval mark this close to the destination is the destination (float noise in L)."""
+
+
 def mark_distances_m(length_m: float, interval_mi: float) -> list[float]:
-    """Mark distances in meters: ``0, I, 2I, … < L`` plus ``L``."""
+    """Mark distances in meters: ``0, I, 2I, … < L`` plus ``L``.
+
+    Interval marks within ``MARK_MERGE_TOLERANCE_M`` of ``L`` are dropped, so a length that
+    is a float hair above a multiple of the interval doesn't yield a duplicate destination
+    checkpoint owning ~0 miles.
+    """
     if length_m <= 0:
         raise ValueError("length_m must be positive")
     if interval_mi <= 0:
@@ -53,7 +62,7 @@ def mark_distances_m(length_m: float, interval_mi: float) -> list[float]:
     step_m = interval_mi * METERS_PER_MILE
     marks: list[float] = []
     n = 0
-    while (d := n * step_m) < length_m:
+    while (d := n * step_m) < length_m - MARK_MERGE_TOLERANCE_M or n == 0:
         marks.append(d)
         n += 1
     marks.append(float(length_m))
