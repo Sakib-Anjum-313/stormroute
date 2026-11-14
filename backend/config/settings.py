@@ -7,6 +7,7 @@ The app is stateless: there are no models and no database is required.
 from pathlib import Path
 
 import environ
+from corsheaders.defaults import default_headers as default_cors_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -37,6 +38,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "trips.api.requestid.RequestIDMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.gzip.GZipMiddleware",
@@ -74,15 +76,19 @@ else:
     }
 
 CORS_ALLOWED_ORIGINS: list[str] = env("CORS_ALLOWED_ORIGINS")
-CORS_EXPOSE_HEADERS = ["Server-Timing", "X-Request-ID"]
+CORS_EXPOSE_HEADERS = ["Server-Timing", "X-Request-ID", "Retry-After"]
+CORS_ALLOW_HEADERS = (*default_cors_headers, "x-fixture", "x-request-id")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": [],
     "UNAUTHENTICATED_USER": None,
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "URL_FORMAT_OVERRIDE": None,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_RATES": {"plan": "10/min", "geocode": "60/min"},
+    "EXCEPTION_HANDLER": "trips.api.errors.exception_handler",
 }
 
 SPECTACULAR_SETTINGS = {
@@ -90,6 +96,10 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "RiskLevelEnum": "trips.api.serializers.LEVELS",
+        "DecidingStepEnum": "trips.api.serializers.DECIDING_STEPS",
+    },
 }
 
 STATIC_URL = "static/"
@@ -103,8 +113,17 @@ USE_I18N = False
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
-    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "filters": {"request_id": {"()": "trips.api.requestid.RequestIDLogFilter"}},
+    "formatters": {
+        "plain": {"format": "%(asctime)s %(levelname)s [%(request_id)s] %(name)s %(message)s"}
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "plain",
+            "filters": ["request_id"],
+        }
+    },
     "root": {"handlers": ["console"], "level": "INFO"},
     # httpx logs full request URLs at INFO, and TomTom URLs carry the API key.
     "loggers": {

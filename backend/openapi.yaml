@@ -3,11 +3,78 @@ info:
   title: Spotter Weather-Aware Truck Routing API
   version: 0.1.0
 paths:
+  /api/geocode:
+    get:
+      operationId: geocode
+      description: Place search for the trip form (US, Canada, Mexico). Zero matches
+        is 200 with [].
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          maximum: 10
+          minimum: 1
+          default: 5
+      - in: query
+        name: q
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 120
+        required: true
+      tags:
+      - geocode
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeocodeResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: VALIDATION
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: RATE_LIMITED
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: INTERNAL
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: UPSTREAM_UNAVAILABLE
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: UPSTREAM_RATE_LIMITED
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: UPSTREAM_TIMEOUT
   /api/healthz:
     get:
       operationId: healthz
       description: Liveness probe. Makes no upstream calls, so keep-warm pings cost
         no quota.
+      tags:
+      - healthz
       responses:
         '200':
           content:
@@ -23,12 +90,359 @@ paths:
 
         Used to check that streaming survives gunicorn, gzip and the hosting proxy unbuffered.
       tags:
-      - stream
+      - healthz
       responses:
         '200':
           description: NDJSON ticks
+  /api/plan:
+    post:
+      operationId: plan
+      description: |-
+        Plan a truck trip: 3 routes, weather risk at each checkpoint's ETA, a recommendation.
+
+        With `Accept: application/x-ndjson` the response is a stream of events, one JSON object
+        per line: `meta`, `routes`, `progress`..., then `result` (or `error`). With
+        `Accept: application/json` it is the final plan only.
+      parameters:
+      - in: header
+        name: X-Fixture
+        schema:
+          type: string
+          enum:
+          - default
+          - no_route
+          - no_travel_all
+          - two_routes
+          - upstream_429
+        description: Fixture scenario; used only when PLAN_FIXTURES=1.
+      tags:
+      - plan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequestRequest'
+            examples:
+              DenverToSaltLakeCity:
+                value:
+                  origin:
+                    label: Denver, CO, USA
+                    lat: 39.7392
+                    lon: -104.9903
+                  destination:
+                    label: Salt Lake City, UT, USA
+                    lat: 40.7608
+                    lon: -111.891
+                  departure_local: 2026-11-15T06:00
+                  load_weight_lb: 45000
+                  apply_hos: false
+                summary: Denver to Salt Lake City
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+            application/x-ndjson:
+              schema:
+                $ref: '#/components/schemas/PlanStreamEvent'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: VALIDATION
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: NO_ROUTE
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: RATE_LIMITED
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: INTERNAL
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: UPSTREAM_UNAVAILABLE
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: UPSTREAM_RATE_LIMITED
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: UPSTREAM_TIMEOUT
 components:
   schemas:
+    Aggregates:
+      type: object
+      properties:
+        miles_by_level:
+          $ref: '#/components/schemas/MilesByLevel'
+        avg_risk:
+          type: number
+          format: double
+          nullable: true
+        max_level:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/RiskLevelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        checkpoint_count:
+          type: integer
+      required:
+      - avg_risk
+      - checkpoint_count
+      - max_level
+      - miles_by_level
+    Checkpoint:
+      type: object
+      properties:
+        mile:
+          type: number
+          format: double
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        kind:
+          $ref: '#/components/schemas/CheckpointKindEnum'
+        owned_mi:
+          type: number
+          format: double
+        eta_utc:
+          type: string
+          format: date-time
+        tz:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        weather:
+          allOf:
+          - $ref: '#/components/schemas/CheckpointWeather'
+          nullable: true
+        level:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/RiskLevelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        score:
+          type: integer
+          nullable: true
+        levels:
+          allOf:
+          - $ref: '#/components/schemas/VariableLevels'
+          nullable: true
+        triggers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trigger'
+      required:
+      - eta_utc
+      - kind
+      - lat
+      - level
+      - levels
+      - lon
+      - mile
+      - owned_mi
+      - score
+      - status
+      - triggers
+      - tz
+      - weather
+    CheckpointKindEnum:
+      enum:
+      - origin
+      - interval
+      - destination
+      type: string
+      description: |-
+        * `origin` - origin
+        * `interval` - interval
+        * `destination` - destination
+    CheckpointWeather:
+      type: object
+      properties:
+        wind_mph:
+          type: number
+          format: double
+          nullable: true
+        gust_mph:
+          type: number
+          format: double
+          nullable: true
+        rain_in_hr:
+          type: number
+          format: double
+          nullable: true
+        snow_in_hr:
+          type: number
+          format: double
+          nullable: true
+        cell:
+          type: array
+          items:
+            type: number
+            format: double
+          maxItems: 2
+          minItems: 2
+      required:
+      - cell
+      - gust_mph
+      - rain_in_hr
+      - snow_in_hr
+      - wind_mph
+    DecidingStepEnum:
+      enum:
+      - no_travel_mi
+      - severe_mi
+      - high_mi
+      - avg_risk
+      - duration_min
+      - route_order
+      type: string
+      description: |-
+        * `no_travel_mi` - no_travel_mi
+        * `severe_mi` - severe_mi
+        * `high_mi` - high_mi
+        * `avg_risk` - avg_risk
+        * `duration_min` - duration_min
+        * `route_order` - route_order
+    EncodingEnum:
+      enum:
+      - polyline6
+      type: string
+      description: '* `polyline6` - polyline6'
+    Error:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+      required:
+      - error
+    ErrorBody:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorBodyCodeEnum'
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: {}
+        retry_after_s:
+          type: integer
+          nullable: true
+      required:
+      - code
+      - details
+      - message
+      - retry_after_s
+    ErrorBodyCodeEnum:
+      enum:
+      - VALIDATION
+      - NO_ROUTE
+      - RATE_LIMITED
+      - UPSTREAM_RATE_LIMITED
+      - UPSTREAM_UNAVAILABLE
+      - UPSTREAM_TIMEOUT
+      - INTERNAL
+      type: string
+      description: |-
+        * `VALIDATION` - VALIDATION
+        * `NO_ROUTE` - NO_ROUTE
+        * `RATE_LIMITED` - RATE_LIMITED
+        * `UPSTREAM_RATE_LIMITED` - UPSTREAM_RATE_LIMITED
+        * `UPSTREAM_UNAVAILABLE` - UPSTREAM_UNAVAILABLE
+        * `UPSTREAM_TIMEOUT` - UPSTREAM_TIMEOUT
+        * `INTERNAL` - INTERNAL
+    ErrorEvent:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ErrorEventTypeEnum'
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+      required:
+      - error
+      - type
+    ErrorEventTypeEnum:
+      enum:
+      - error
+      type: string
+      description: '* `error` - error'
+    GeocodeResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GeocodeResult'
+      required:
+      - results
+    GeocodeResult:
+      type: object
+      properties:
+        label:
+          type: string
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        kind:
+          $ref: '#/components/schemas/GeocodeResultKindEnum'
+      required:
+      - kind
+      - label
+      - lat
+      - lon
+    GeocodeResultKindEnum:
+      enum:
+      - Geo
+      - PAD
+      - Addr
+      - Str
+      - POI
+      type: string
+      description: |-
+        * `Geo` - Geo
+        * `PAD` - PAD
+        * `Addr` - Addr
+        * `Str` - Str
+        * `POI` - POI
+    Geometry:
+      type: object
+      properties:
+        encoding:
+          $ref: '#/components/schemas/EncodingEnum'
+        value:
+          type: string
+      required:
+      - encoding
+      - value
     Health:
       type: object
       properties:
@@ -39,3 +453,566 @@ components:
       required:
       - status
       - version
+    Heatmap:
+      type: object
+      properties:
+        base_time_utc:
+          type: string
+          format: date-time
+        hours:
+          type: integer
+        cell_deg:
+          type: number
+          format: double
+        count:
+          type: integer
+        lat:
+          type: array
+          items:
+            type: number
+            format: double
+        lon:
+          type: array
+          items:
+            type: number
+            format: double
+        levels_b64:
+          type: string
+          description: Uint8, frame-major (idx = h * count + i); 255 = no data.
+        wind_mph_x10_b64:
+          type: string
+          description: Uint16 LE; 65535 = no data.
+        rain_in_hr_x1000_b64:
+          type: string
+          description: Uint16 LE; 65535 = no data.
+        snow_in_hr_x100_b64:
+          type: string
+          description: Uint16 LE; 65535 = no data.
+      required:
+      - base_time_utc
+      - cell_deg
+      - count
+      - hours
+      - lat
+      - levels_b64
+      - lon
+      - rain_in_hr_x1000_b64
+      - snow_in_hr_x100_b64
+      - wind_mph_x10_b64
+    HosStop:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/HosStopKindEnum'
+        mile:
+          type: number
+          format: double
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        start_utc:
+          type: string
+          format: date-time
+        duration_s:
+          type: integer
+      required:
+      - duration_s
+      - kind
+      - lat
+      - lon
+      - mile
+      - start_utc
+    HosStopKindEnum:
+      enum:
+      - break
+      - rest
+      type: string
+      description: |-
+        * `break` - break
+        * `rest` - rest
+    Interval:
+      type: object
+      properties:
+        checkpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Checkpoint'
+        aggregates:
+          $ref: '#/components/schemas/Aggregates'
+      required:
+      - aggregates
+      - checkpoints
+    Intervals:
+      type: object
+      properties:
+        '10':
+          $ref: '#/components/schemas/Interval'
+        '25':
+          $ref: '#/components/schemas/Interval'
+        '50':
+          $ref: '#/components/schemas/Interval'
+      required:
+      - '10'
+      - '25'
+      - '50'
+    MetaEvent:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/MetaEventTypeEnum'
+        departure_utc:
+          type: string
+          format: date-time
+        origin_tz:
+          type: string
+      required:
+      - departure_utc
+      - origin_tz
+      - type
+    MetaEventTypeEnum:
+      enum:
+      - meta
+      type: string
+      description: '* `meta` - meta'
+    MilesByLevel:
+      type: object
+      properties:
+        LOW:
+          type: number
+          format: double
+        MODERATE:
+          type: number
+          format: double
+        HIGH:
+          type: number
+          format: double
+        SEVERE:
+          type: number
+          format: double
+        NO_TRAVEL:
+          type: number
+          format: double
+        NO_DATA:
+          type: number
+          format: double
+      required:
+      - HIGH
+      - LOW
+      - MODERATE
+      - NO_DATA
+      - NO_TRAVEL
+      - SEVERE
+    NullEnum:
+      enum:
+      - null
+    PlaceInRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          default: ''
+          maxLength: 200
+        lat:
+          type: number
+          format: double
+          maximum: 90
+          minimum: -90
+        lon:
+          type: number
+          format: double
+          maximum: 180
+          minimum: -180
+      required:
+      - lat
+      - lon
+    Plan:
+      type: object
+      properties:
+        departure_utc:
+          type: string
+          format: date-time
+        origin_tz:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        load_weight_lb:
+          type: number
+          format: double
+        apply_hos:
+          type: boolean
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanRoute'
+        recommendation:
+          $ref: '#/components/schemas/Recommendations'
+        heatmap:
+          $ref: '#/components/schemas/Heatmap'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Warning'
+      required:
+      - apply_hos
+      - departure_utc
+      - generated_at
+      - heatmap
+      - load_weight_lb
+      - origin_tz
+      - recommendation
+      - routes
+      - warnings
+    PlanRequestRequest:
+      type: object
+      properties:
+        origin:
+          $ref: '#/components/schemas/PlaceInRequest'
+        destination:
+          $ref: '#/components/schemas/PlaceInRequest'
+        departure_local:
+          type: string
+          minLength: 1
+          description: Wall-clock time at the origin without an offset, e.g. 2026-11-15T06:00.
+          maxLength: 19
+        load_weight_lb:
+          type: number
+          format: double
+          maximum: 200000
+          minimum: 1
+        apply_hos:
+          type: boolean
+          default: false
+      required:
+      - departure_local
+      - destination
+      - load_weight_lb
+      - origin
+    PlanRoute:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        summary:
+          $ref: '#/components/schemas/RouteSummary'
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/HosStop'
+          description: HOS stops; empty when apply_hos is off.
+        intervals:
+          $ref: '#/components/schemas/Intervals'
+      required:
+      - geometry
+      - id
+      - intervals
+      - label
+      - source
+      - stops
+      - summary
+    PlanStreamEvent:
+      oneOf:
+      - $ref: '#/components/schemas/MetaEvent'
+      - $ref: '#/components/schemas/RoutesEvent'
+      - $ref: '#/components/schemas/ProgressEvent'
+      - $ref: '#/components/schemas/ResultEvent'
+      - $ref: '#/components/schemas/ErrorEvent'
+      discriminator:
+        propertyName: type
+        mapping:
+          meta: '#/components/schemas/MetaEvent'
+          routes: '#/components/schemas/RoutesEvent'
+          progress: '#/components/schemas/ProgressEvent'
+          result: '#/components/schemas/ResultEvent'
+          error: '#/components/schemas/ErrorEvent'
+    ProgressEvent:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ProgressEventTypeEnum'
+        stage:
+          $ref: '#/components/schemas/StageEnum'
+        done:
+          type: integer
+        total:
+          type: integer
+      required:
+      - done
+      - stage
+      - total
+      - type
+    ProgressEventTypeEnum:
+      enum:
+      - progress
+      type: string
+      description: '* `progress` - progress'
+    Recommendation:
+      type: object
+      properties:
+        route_id:
+          type: string
+        ranking:
+          type: array
+          items:
+            type: string
+        all_no_travel:
+          type: boolean
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/StepsEnum'
+        keys:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: number
+              format: double
+              nullable: true
+          description: Comparator key per route, in `steps` order; avg_risk is null
+            without data.
+        decided_by:
+          type: object
+          additionalProperties:
+            enum:
+            - no_travel_mi
+            - severe_mi
+            - high_mi
+            - avg_risk
+            - duration_min
+            - route_order
+            type: string
+            description: |-
+              * `no_travel_mi` - no_travel_mi
+              * `severe_mi` - severe_mi
+              * `high_mi` - high_mi
+              * `avg_risk` - avg_risk
+              * `duration_min` - duration_min
+              * `route_order` - route_order
+          description: For every non-winning route, the first step at which it lost.
+        decisive_step:
+          nullable: true
+          description: |-
+            The step that separated the winner from the runner-up.
+
+            * `no_travel_mi` - no_travel_mi
+            * `severe_mi` - severe_mi
+            * `high_mi` - high_mi
+            * `avg_risk` - avg_risk
+            * `duration_min` - duration_min
+            * `route_order` - route_order
+          oneOf:
+          - $ref: '#/components/schemas/DecidingStepEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - all_no_travel
+      - decided_by
+      - decisive_step
+      - keys
+      - ranking
+      - route_id
+      - steps
+    Recommendations:
+      type: object
+      properties:
+        '10':
+          $ref: '#/components/schemas/Recommendation'
+        '25':
+          $ref: '#/components/schemas/Recommendation'
+        '50':
+          $ref: '#/components/schemas/Recommendation'
+      required:
+      - '10'
+      - '25'
+      - '50'
+    ResultEvent:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ResultEventTypeEnum'
+        plan:
+          $ref: '#/components/schemas/Plan'
+      required:
+      - plan
+      - type
+    ResultEventTypeEnum:
+      enum:
+      - result
+      type: string
+      description: '* `result` - result'
+    RiskLevelEnum:
+      enum:
+      - LOW
+      - MODERATE
+      - HIGH
+      - SEVERE
+      - NO_TRAVEL
+      type: string
+      description: |-
+        * `LOW` - LOW
+        * `MODERATE` - MODERATE
+        * `HIGH` - HIGH
+        * `SEVERE` - SEVERE
+        * `NO_TRAVEL` - NO_TRAVEL
+    Route:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        summary:
+          $ref: '#/components/schemas/RouteSummary'
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/HosStop'
+          description: HOS stops; empty when apply_hos is off.
+      required:
+      - geometry
+      - id
+      - label
+      - source
+      - stops
+      - summary
+    RouteSummary:
+      type: object
+      properties:
+        distance_mi:
+          type: number
+          format: double
+        duration_s:
+          type: integer
+          description: Driving time plus HOS stops.
+        driving_s:
+          type: integer
+        hos_stop_s:
+          type: integer
+        departure_utc:
+          type: string
+          format: date-time
+        arrival_utc:
+          type: string
+          format: date-time
+        traffic_delay_s:
+          type: integer
+      required:
+      - arrival_utc
+      - departure_utc
+      - distance_mi
+      - driving_s
+      - duration_s
+      - hos_stop_s
+      - traffic_delay_s
+    RoutesEvent:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/RoutesEventTypeEnum'
+        routes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+      required:
+      - routes
+      - type
+    RoutesEventTypeEnum:
+      enum:
+      - routes
+      type: string
+      description: '* `routes` - routes'
+    SourceEnum:
+      enum:
+      - tomtom
+      - via_point
+      type: string
+      description: |-
+        * `tomtom` - tomtom
+        * `via_point` - via_point
+    StageEnum:
+      enum:
+      - weather
+      type: string
+      description: '* `weather` - weather'
+    StatusEnum:
+      enum:
+      - ok
+      - no_data
+      type: string
+      description: |-
+        * `ok` - ok
+        * `no_data` - no_data
+    StepsEnum:
+      enum:
+      - no_travel_mi
+      - severe_mi
+      - high_mi
+      - avg_risk
+      - duration_min
+      type: string
+      description: |-
+        * `no_travel_mi` - no_travel_mi
+        * `severe_mi` - severe_mi
+        * `high_mi` - high_mi
+        * `avg_risk` - avg_risk
+        * `duration_min` - duration_min
+    Trigger:
+      type: object
+      properties:
+        rule:
+          type: string
+        detail:
+          type: string
+      required:
+      - detail
+      - rule
+    VariableLevels:
+      type: object
+      properties:
+        wind:
+          $ref: '#/components/schemas/RiskLevelEnum'
+        rain:
+          $ref: '#/components/schemas/RiskLevelEnum'
+        snow:
+          $ref: '#/components/schemas/RiskLevelEnum'
+      required:
+      - rain
+      - snow
+      - wind
+    Warning:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/WarningCodeEnum'
+        message:
+          type: string
+      required:
+      - code
+      - message
+    WarningCodeEnum:
+      enum:
+      - OVER_FEDERAL_GROSS_LIMIT
+      - FEWER_THAN_3_ROUTES
+      - WEATHER_PARTIAL
+      - BEYOND_FORECAST_HORIZON
+      - WEATHER_COARSENED
+      type: string
+      description: |-
+        * `OVER_FEDERAL_GROSS_LIMIT` - OVER_FEDERAL_GROSS_LIMIT
+        * `FEWER_THAN_3_ROUTES` - FEWER_THAN_3_ROUTES
+        * `WEATHER_PARTIAL` - WEATHER_PARTIAL
+        * `BEYOND_FORECAST_HORIZON` - BEYOND_FORECAST_HORIZON
+        * `WEATHER_COARSENED` - WEATHER_COARSENED

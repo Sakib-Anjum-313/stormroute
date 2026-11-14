@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+  '/api/geocode': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** @description Place search for the trip form (US, Canada, Mexico). Zero matches is 200 with []. */
+    get: operations['geocode']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
   '/api/healthz': {
     parameters: {
       query?: never
@@ -42,14 +59,445 @@ export interface paths {
     patch?: never
     trace?: never
   }
+  '/api/plan': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * @description Plan a truck trip: 3 routes, weather risk at each checkpoint's ETA, a recommendation.
+     *
+     *     With `Accept: application/x-ndjson` the response is a stream of events, one JSON object
+     *     per line: `meta`, `routes`, `progress`..., then `result` (or `error`). With
+     *     `Accept: application/json` it is the final plan only.
+     */
+    post: operations['plan']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
 export type webhooks = Record<string, never>
 export interface components {
   schemas: {
+    Aggregates: {
+      miles_by_level: components['schemas']['MilesByLevel']
+      /** Format: double */
+      avg_risk: number | null
+      max_level: (components['schemas']['RiskLevelEnum'] | components['schemas']['NullEnum']) | null
+      checkpoint_count: number
+    }
+    Checkpoint: {
+      /** Format: double */
+      mile: number
+      /** Format: double */
+      lat: number
+      /** Format: double */
+      lon: number
+      kind: components['schemas']['CheckpointKindEnum']
+      /** Format: double */
+      owned_mi: number
+      /** Format: date-time */
+      eta_utc: string
+      tz: string
+      status: components['schemas']['StatusEnum']
+      weather: components['schemas']['CheckpointWeather'] | null
+      level: (components['schemas']['RiskLevelEnum'] | components['schemas']['NullEnum']) | null
+      score: number | null
+      levels: components['schemas']['VariableLevels'] | null
+      triggers: components['schemas']['Trigger'][]
+    }
+    /**
+     * @description * `origin` - origin
+     *     * `interval` - interval
+     *     * `destination` - destination
+     * @enum {string}
+     */
+    CheckpointKindEnum: 'origin' | 'interval' | 'destination'
+    CheckpointWeather: {
+      /** Format: double */
+      wind_mph: number | null
+      /** Format: double */
+      gust_mph: number | null
+      /** Format: double */
+      rain_in_hr: number | null
+      /** Format: double */
+      snow_in_hr: number | null
+      cell: number[]
+    }
+    /**
+     * @description * `no_travel_mi` - no_travel_mi
+     *     * `severe_mi` - severe_mi
+     *     * `high_mi` - high_mi
+     *     * `avg_risk` - avg_risk
+     *     * `duration_min` - duration_min
+     *     * `route_order` - route_order
+     * @enum {string}
+     */
+    DecidingStepEnum:
+      'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min' | 'route_order'
+    /**
+     * @description * `polyline6` - polyline6
+     * @enum {string}
+     */
+    EncodingEnum: 'polyline6'
+    Error: {
+      error: components['schemas']['ErrorBody']
+    }
+    ErrorBody: {
+      code: components['schemas']['ErrorBodyCodeEnum']
+      message: string
+      details: {
+        [key: string]: unknown
+      }
+      retry_after_s: number | null
+    }
+    /**
+     * @description * `VALIDATION` - VALIDATION
+     *     * `NO_ROUTE` - NO_ROUTE
+     *     * `RATE_LIMITED` - RATE_LIMITED
+     *     * `UPSTREAM_RATE_LIMITED` - UPSTREAM_RATE_LIMITED
+     *     * `UPSTREAM_UNAVAILABLE` - UPSTREAM_UNAVAILABLE
+     *     * `UPSTREAM_TIMEOUT` - UPSTREAM_TIMEOUT
+     *     * `INTERNAL` - INTERNAL
+     * @enum {string}
+     */
+    ErrorBodyCodeEnum:
+      | 'VALIDATION'
+      | 'NO_ROUTE'
+      | 'RATE_LIMITED'
+      | 'UPSTREAM_RATE_LIMITED'
+      | 'UPSTREAM_UNAVAILABLE'
+      | 'UPSTREAM_TIMEOUT'
+      | 'INTERNAL'
+    ErrorEvent: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'error'
+      error: components['schemas']['ErrorBody']
+    }
+    /**
+     * @description * `error` - error
+     * @enum {string}
+     */
+    ErrorEventTypeEnum: 'error'
+    GeocodeResponse: {
+      results: components['schemas']['GeocodeResult'][]
+    }
+    GeocodeResult: {
+      label: string
+      /** Format: double */
+      lat: number
+      /** Format: double */
+      lon: number
+      kind: components['schemas']['GeocodeResultKindEnum']
+    }
+    /**
+     * @description * `Geo` - Geo
+     *     * `PAD` - PAD
+     *     * `Addr` - Addr
+     *     * `Str` - Str
+     *     * `POI` - POI
+     * @enum {string}
+     */
+    GeocodeResultKindEnum: 'Geo' | 'PAD' | 'Addr' | 'Str' | 'POI'
+    Geometry: {
+      encoding: components['schemas']['EncodingEnum']
+      value: string
+    }
     Health: {
       status: string
       version: string
     }
+    Heatmap: {
+      /** Format: date-time */
+      base_time_utc: string
+      hours: number
+      /** Format: double */
+      cell_deg: number
+      count: number
+      lat: number[]
+      lon: number[]
+      /** @description Uint8, frame-major (idx = h * count + i); 255 = no data. */
+      levels_b64: string
+      /** @description Uint16 LE; 65535 = no data. */
+      wind_mph_x10_b64: string
+      /** @description Uint16 LE; 65535 = no data. */
+      rain_in_hr_x1000_b64: string
+      /** @description Uint16 LE; 65535 = no data. */
+      snow_in_hr_x100_b64: string
+    }
+    HosStop: {
+      kind: components['schemas']['HosStopKindEnum']
+      /** Format: double */
+      mile: number
+      /** Format: double */
+      lat: number
+      /** Format: double */
+      lon: number
+      /** Format: date-time */
+      start_utc: string
+      duration_s: number
+    }
+    /**
+     * @description * `break` - break
+     *     * `rest` - rest
+     * @enum {string}
+     */
+    HosStopKindEnum: 'break' | 'rest'
+    Interval: {
+      checkpoints: components['schemas']['Checkpoint'][]
+      aggregates: components['schemas']['Aggregates']
+    }
+    Intervals: {
+      10: components['schemas']['Interval']
+      25: components['schemas']['Interval']
+      50: components['schemas']['Interval']
+    }
+    MetaEvent: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'meta'
+      /** Format: date-time */
+      departure_utc: string
+      origin_tz: string
+    }
+    /**
+     * @description * `meta` - meta
+     * @enum {string}
+     */
+    MetaEventTypeEnum: 'meta'
+    MilesByLevel: {
+      /** Format: double */
+      LOW: number
+      /** Format: double */
+      MODERATE: number
+      /** Format: double */
+      HIGH: number
+      /** Format: double */
+      SEVERE: number
+      /** Format: double */
+      NO_TRAVEL: number
+      /** Format: double */
+      NO_DATA: number
+    }
+    /** @enum {unknown} */
+    NullEnum: null
+    PlaceInRequest: {
+      /** @default  */
+      label: string
+      /** Format: double */
+      lat: number
+      /** Format: double */
+      lon: number
+    }
+    Plan: {
+      /** Format: date-time */
+      departure_utc: string
+      origin_tz: string
+      /** Format: date-time */
+      generated_at: string
+      /** Format: double */
+      load_weight_lb: number
+      apply_hos: boolean
+      routes: components['schemas']['PlanRoute'][]
+      recommendation: components['schemas']['Recommendations']
+      heatmap: components['schemas']['Heatmap']
+      warnings: components['schemas']['Warning'][]
+    }
+    PlanRequestRequest: {
+      origin: components['schemas']['PlaceInRequest']
+      destination: components['schemas']['PlaceInRequest']
+      /** @description Wall-clock time at the origin without an offset, e.g. 2026-11-15T06:00. */
+      departure_local: string
+      /** Format: double */
+      load_weight_lb: number
+      /** @default false */
+      apply_hos: boolean
+    }
+    PlanRoute: {
+      id: string
+      label: string
+      source: components['schemas']['SourceEnum']
+      summary: components['schemas']['RouteSummary']
+      geometry: components['schemas']['Geometry']
+      /** @description HOS stops; empty when apply_hos is off. */
+      stops: components['schemas']['HosStop'][]
+      intervals: components['schemas']['Intervals']
+    }
+    PlanStreamEvent:
+      | components['schemas']['MetaEvent']
+      | components['schemas']['RoutesEvent']
+      | components['schemas']['ProgressEvent']
+      | components['schemas']['ResultEvent']
+      | components['schemas']['ErrorEvent']
+    ProgressEvent: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'progress'
+      stage: components['schemas']['StageEnum']
+      done: number
+      total: number
+    }
+    /**
+     * @description * `progress` - progress
+     * @enum {string}
+     */
+    ProgressEventTypeEnum: 'progress'
+    Recommendation: {
+      route_id: string
+      ranking: string[]
+      all_no_travel: boolean
+      steps: components['schemas']['StepsEnum'][]
+      /** @description Comparator key per route, in `steps` order; avg_risk is null without data. */
+      keys: {
+        [key: string]: (number | null)[]
+      }
+      /** @description For every non-winning route, the first step at which it lost. */
+      decided_by: {
+        [key: string]:
+          'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min' | 'route_order'
+      }
+      /**
+       * @description The step that separated the winner from the runner-up.
+       *
+       *     * `no_travel_mi` - no_travel_mi
+       *     * `severe_mi` - severe_mi
+       *     * `high_mi` - high_mi
+       *     * `avg_risk` - avg_risk
+       *     * `duration_min` - duration_min
+       *     * `route_order` - route_order
+       */
+      decisive_step:
+        (components['schemas']['DecidingStepEnum'] | components['schemas']['NullEnum']) | null
+    }
+    Recommendations: {
+      10: components['schemas']['Recommendation']
+      25: components['schemas']['Recommendation']
+      50: components['schemas']['Recommendation']
+    }
+    ResultEvent: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'result'
+      plan: components['schemas']['Plan']
+    }
+    /**
+     * @description * `result` - result
+     * @enum {string}
+     */
+    ResultEventTypeEnum: 'result'
+    /**
+     * @description * `LOW` - LOW
+     *     * `MODERATE` - MODERATE
+     *     * `HIGH` - HIGH
+     *     * `SEVERE` - SEVERE
+     *     * `NO_TRAVEL` - NO_TRAVEL
+     * @enum {string}
+     */
+    RiskLevelEnum: 'LOW' | 'MODERATE' | 'HIGH' | 'SEVERE' | 'NO_TRAVEL'
+    Route: {
+      id: string
+      label: string
+      source: components['schemas']['SourceEnum']
+      summary: components['schemas']['RouteSummary']
+      geometry: components['schemas']['Geometry']
+      /** @description HOS stops; empty when apply_hos is off. */
+      stops: components['schemas']['HosStop'][]
+    }
+    RouteSummary: {
+      /** Format: double */
+      distance_mi: number
+      /** @description Driving time plus HOS stops. */
+      duration_s: number
+      driving_s: number
+      hos_stop_s: number
+      /** Format: date-time */
+      departure_utc: string
+      /** Format: date-time */
+      arrival_utc: string
+      traffic_delay_s: number
+    }
+    RoutesEvent: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'routes'
+      routes: components['schemas']['Route'][]
+    }
+    /**
+     * @description * `routes` - routes
+     * @enum {string}
+     */
+    RoutesEventTypeEnum: 'routes'
+    /**
+     * @description * `tomtom` - tomtom
+     *     * `via_point` - via_point
+     * @enum {string}
+     */
+    SourceEnum: 'tomtom' | 'via_point'
+    /**
+     * @description * `weather` - weather
+     * @enum {string}
+     */
+    StageEnum: 'weather'
+    /**
+     * @description * `ok` - ok
+     *     * `no_data` - no_data
+     * @enum {string}
+     */
+    StatusEnum: 'ok' | 'no_data'
+    /**
+     * @description * `no_travel_mi` - no_travel_mi
+     *     * `severe_mi` - severe_mi
+     *     * `high_mi` - high_mi
+     *     * `avg_risk` - avg_risk
+     *     * `duration_min` - duration_min
+     * @enum {string}
+     */
+    StepsEnum: 'no_travel_mi' | 'severe_mi' | 'high_mi' | 'avg_risk' | 'duration_min'
+    Trigger: {
+      rule: string
+      detail: string
+    }
+    VariableLevels: {
+      wind: components['schemas']['RiskLevelEnum']
+      rain: components['schemas']['RiskLevelEnum']
+      snow: components['schemas']['RiskLevelEnum']
+    }
+    Warning: {
+      code: components['schemas']['WarningCodeEnum']
+      message: string
+    }
+    /**
+     * @description * `OVER_FEDERAL_GROSS_LIMIT` - OVER_FEDERAL_GROSS_LIMIT
+     *     * `FEWER_THAN_3_ROUTES` - FEWER_THAN_3_ROUTES
+     *     * `WEATHER_PARTIAL` - WEATHER_PARTIAL
+     *     * `BEYOND_FORECAST_HORIZON` - BEYOND_FORECAST_HORIZON
+     *     * `WEATHER_COARSENED` - WEATHER_COARSENED
+     * @enum {string}
+     */
+    WarningCodeEnum:
+      | 'OVER_FEDERAL_GROSS_LIMIT'
+      | 'FEWER_THAN_3_ROUTES'
+      | 'WEATHER_PARTIAL'
+      | 'BEYOND_FORECAST_HORIZON'
+      | 'WEATHER_COARSENED'
   }
   responses: never
   parameters: never
@@ -59,6 +507,82 @@ export interface components {
 }
 export type $defs = Record<string, never>
 export interface operations {
+  geocode: {
+    parameters: {
+      query: {
+        limit?: number
+        q: string
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['GeocodeResponse']
+        }
+      }
+      /** @description VALIDATION */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description RATE_LIMITED */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description INTERNAL */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description UPSTREAM_UNAVAILABLE */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description UPSTREAM_RATE_LIMITED */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description UPSTREAM_TIMEOUT */
+      504: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+    }
+  }
   healthz: {
     parameters: {
       query?: never
@@ -93,6 +617,96 @@ export interface operations {
           [name: string]: unknown
         }
         content?: never
+      }
+    }
+  }
+  plan: {
+    parameters: {
+      query?: never
+      header?: {
+        /** @description Fixture scenario; used only when PLAN_FIXTURES=1. */
+        'X-Fixture'?: 'default' | 'no_route' | 'no_travel_all' | 'two_routes' | 'upstream_429'
+      }
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PlanRequestRequest']
+      }
+    }
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Plan']
+          'application/x-ndjson': components['schemas']['PlanStreamEvent']
+        }
+      }
+      /** @description VALIDATION */
+      400: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description NO_ROUTE */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description RATE_LIMITED */
+      429: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description INTERNAL */
+      500: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description UPSTREAM_UNAVAILABLE */
+      502: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description UPSTREAM_RATE_LIMITED */
+      503: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
+      }
+      /** @description UPSTREAM_TIMEOUT */
+      504: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Error']
+        }
       }
     }
   }
