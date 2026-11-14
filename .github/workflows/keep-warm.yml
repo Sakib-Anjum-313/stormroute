@@ -1,0 +1,20 @@
+# Backup pinger for the free Render API (cron-job.org is the primary, see docs/DEPLOY.md §5).
+# GitHub may delay scheduled runs and disables them after 60 days without repo activity.
+name: keep-warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/healthz
+        env:
+          API_URL: ${{ vars.API_URL || 'https://stormroute-api.onrender.com' }}
+        run: curl -fsS --retry 2 --max-time 90 "$API_URL/api/healthz"
