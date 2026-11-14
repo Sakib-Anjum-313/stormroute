@@ -20,6 +20,7 @@ env = environ.Env(
     REDIS_URL=(str, ""),
     PLAN_FIXTURES=(bool, False),
     GIT_SHA=(str, "dev"),
+    TOMTOM_BASE_URL=(str, "https://api.tomtom.com"),
 )
 environ.Env.read_env(BASE_DIR / ".env", overwrite=False)
 
@@ -105,14 +106,22 @@ LOGGING = {
     "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
     "root": {"handlers": ["console"], "level": "INFO"},
+    # httpx logs full request URLs at INFO, and TomTom URLs carry the API key.
+    "loggers": {
+        "httpx": {"level": "WARNING"},
+        "httpcore": {"level": "WARNING"},
+    },
 }
 
 # --- Spotter-specific settings ---
 TOMTOM_API_KEY: str = env("TOMTOM_API_KEY")
+TOMTOM_BASE_URL: str = env("TOMTOM_BASE_URL")
 OPEN_METEO_BASE_URL: str = env("OPEN_METEO_BASE_URL")
 OPEN_METEO_API_KEY: str = env("OPEN_METEO_API_KEY")
 PLAN_FIXTURES: bool = env("PLAN_FIXTURES")
 GIT_SHA: str = env("GIT_SHA")
+UPSTREAM_RETRY_DELAYS_S: tuple[float, ...] = (1.0, 3.0)
+"""Backoff before each retry of a 429/5xx (jittered ±25%). Tests set this to zeros."""
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
