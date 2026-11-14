@@ -18,12 +18,16 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx
 
 DENVER = ZoneInfo("America/Denver")
 COLD_START_TIMEOUT_S = 120
+# The API allows 10 plans/min per IP and this script sends 3, so a run soon after another run
+# (or after using the app) can hit 429. Wait out Retry-After instead of reporting a failure.
+MAX_RETRY_WAIT_S = 65
 
 
 @dataclass
@@ -60,6 +64,19 @@ def run(api: str, web: str) -> list[Check]:
         print(f"{'PASS' if ok else 'FAIL'}  {name}: {detail}", flush=True)
 
     client = httpx.Client(timeout=60, headers={"User-Agent": "stormroute-smoke-test"})
+
+    def post_plan(body: dict[str, object], **kwargs: Any) -> httpx.Response:
+        r = client.post(
+            f"{api}/api/plan", json=body, headers={"Accept": "application/json"}, **kwargs
+        )
+        if r.status_code == 429:
+            wait = min(int(r.headers.get("retry-after", "60")) + 1, MAX_RETRY_WAIT_S)
+            print(f"      rate limited, retrying in {wait}s", flush=True)
+            time.sleep(wait)
+            r = client.post(
+                f"{api}/api/plan", json=body, headers={"Accept": "application/json"}, **kwargs
+            )
+        return r
 
     def health() -> tuple[bool, str]:
         start = time.monotonic()
@@ -113,12 +130,7 @@ def run(api: str, web: str) -> list[Check]:
     def plan(label: str) -> Callable[[], tuple[bool, str]]:
         def go() -> tuple[bool, str]:
             start = time.monotonic()
-            r = client.post(
-                f"{api}/api/plan",
-                json=demo_request(),
-                headers={"Accept": "application/json"},
-                timeout=90,
-            )
+            r = post_plan(demo_request(), timeout=90)
             took = time.monotonic() - start
             timing = server_timing(r.headers.get("server-timing", ""))
             size_kb = len(r.content) / 1024
@@ -135,7 +147,7 @@ def run(api: str, web: str) -> list[Check]:
         return go
 
     def validation() -> tuple[bool, str]:
-        r = client.post(f"{api}/api/plan", json={}, headers={"Accept": "application/json"})
+        r = post_plan({})
         code = r.json().get("error", {}).get("code")
         return r.status_code == 400 and code == "VALIDATION", f"HTTP {r.status_code} code={code}"
 
