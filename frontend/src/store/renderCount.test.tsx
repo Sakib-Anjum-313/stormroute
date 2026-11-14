@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import { Profiler, type ReactNode } from 'react'
 
+import { WhyPanel } from '../features/explain/WhyPanel'
 import { TimeSlider } from '../features/heatmap/TimeSlider'
 import { PlanStatus } from '../features/routes/PlanStatus'
 import { RouteList } from '../features/routes/RouteList'
@@ -17,12 +18,12 @@ import {
 
 /**
  * map-performance rule 3: a slider tick writes `hour` to the store and must not re-render the
- * form, the plan panel, the route cards or even the slider itself (its label is written to the DOM
+ * form, the plan panel, the route cards, the Why panel or even the slider itself (its label is written to the DOM
  * directly).
  */
 test('slider updates do not re-render unrelated components', () => {
   usePlanStore.setState({ ...initialPlanState })
-  const commits: Record<string, number> = { form: 0, status: 0, slider: 0, routes: 0 }
+  const commits: Record<string, number> = { form: 0, status: 0, slider: 0, routes: 0, why: 0 }
   const track = (id: string, children: ReactNode) => (
     <Profiler
       id={id}
@@ -39,6 +40,7 @@ test('slider updates do not re-render unrelated components', () => {
       {track('status', <PlanStatus />)}
       {track('slider', <TimeSlider />)}
       {track('routes', <RouteList />)}
+      {track('why', <WhyPanel />)}
     </QueryClientProvider>,
   )
 
@@ -61,4 +63,5 @@ test('slider updates do not re-render unrelated components', () => {
   expect(commits.status).toBe((before.status ?? 0) + 1)
   expect(commits.form).toBe(before.form)
   expect(commits.routes).toBe((before.routes ?? 0) + 1)
+  expect(commits.why).toBe((before.why ?? 0) + 1)
 })

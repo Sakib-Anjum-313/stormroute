@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 
+import { WhyPanel } from './features/explain/WhyPanel'
 import { TimeSlider } from './features/heatmap/TimeSlider'
 import { Legend } from './features/map/Legend'
 import { PlanStatus } from './features/routes/PlanStatus'
@@ -26,6 +27,7 @@ export default function App() {
           <PlanStatus />
         </section>
         <RouteList />
+        <WhyPanel />
         <footer className="mt-auto text-[11px] text-slate-400">
           Routing by TomTom. Weather data by Open-Meteo.com (CC BY 4.0).
         </footer>
