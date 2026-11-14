@@ -35,7 +35,7 @@ The stream events, in order:
 {"type":"progress","stage":"weather","done":2,"total":5}
 {"type":"result","plan":{...Plan}}
 ```
-On failure after the stream has started, the server sends `{"type":"error","error":{...ErrorBody}}` and closes the stream. The client treats a stream that ends without `result` or `error` as `UPSTREAM_UNAVAILABLE`.
+All routing happens before the first line, so routing failures (`NO_ROUTE`, TomTom 429/5xx/timeout) and validation errors still come back as a normal HTTP error with a JSON error body, even for NDJSON requests. Error bodies are always `application/json`. On failure after the stream has started (weather), the server sends `{"type":"error","error":{...ErrorBody}}` and closes the stream. `progress` events start at `done: 0` and there is one per weather batch; a fully cached plan sends none. The client treats a stream that ends without `result` or `error` as `UPSTREAM_UNAVAILABLE`. The OpenAPI component `PlanStreamEvent` (discriminated by `type`) types every line.
 
 The `Plan` object:
 ```json
@@ -46,6 +46,7 @@ The `Plan` object:
     "summary": {"distance_mi": 525.1, "duration_s": 28800, "driving_s": 28800, "hos_stop_s": 0,
                 "departure_utc": "...", "arrival_utc": "...", "traffic_delay_s": 0},
     "geometry": {"encoding": "polyline6", "value": "..."},
+    "stops": [{"kind": "break | rest", "mile": 412.3, "lat": 41.2, "lon": -108.1, "start_utc": "...", "duration_s": 1800}],
     "intervals": {
       "10": {"checkpoints": [Checkpoint], "aggregates": Aggregates},
       "25": {"checkpoints": [Checkpoint], "aggregates": Aggregates},
@@ -57,6 +58,8 @@ The `Plan` object:
   "warnings": [{"code": "FEWER_THAN_3_ROUTES", "message": "Only 2 distinct truck routes exist for this trip."}]
 }
 ```
+`stops` lists the HOS stops (empty when `apply_hos` is off); the `routes` event carries the same route objects without `intervals`. The geometry is Douglas–Peucker simplified at 20 m before encoding. Warning codes: `OVER_FEDERAL_GROSS_LIMIT`, `FEWER_THAN_3_ROUTES`, `WEATHER_PARTIAL` (a weather batch failed; those checkpoints are NO_DATA), `BEYOND_FORECAST_HORIZON`, `WEATHER_COARSENED` (the 550-location budget guard coarsened the heatmap and/or checkpoint lookup cells).
+
 The `Checkpoint` object:
 ```json
 {"mile": 250.0, "lat": 41.31, "lon": -105.59, "kind": "origin | interval | destination",
@@ -74,8 +77,11 @@ The `Recommendation` object:
 {"route_id": "B", "ranking": ["B", "A", "C"], "all_no_travel": false,
  "steps": ["no_travel_mi", "severe_mi", "high_mi", "avg_risk", "duration_min"],
  "keys": {"A": [0.0, 18.5, 40.0, 1.12, 482], "B": [0.0, 0.0, 22.5, 0.91, 515], "C": [0.0, 7.0, 10.0, 0.70, 530]},
- "decided_by": {"A": "severe_mi", "C": "severe_mi"}}
+ "decided_by": {"A": "severe_mi", "C": "severe_mi"}, "decisive_step": "severe_mi"}
 ```
+`keys[r][3]` (avg risk) is `null` for a route without any weather data. `decided_by` and `decisive_step` take a step name or `"route_order"` (a full tie broken by provider order). `decisive_step` is the step that separated the winner from the runner-up (`null` with one route).
+
+Display rounding: wind and gusts to 0.1 mph, rain and snow to 0.001 in/hr. A displayed value is nudged one unit toward the raw value if rounding would move it into another band (34.96 mph shows as 34.9, never 35.0), so the number always agrees with `level`. Classification always uses the raw value.
 The `Heatmap` object is columnar and binary for size and zero-parse decoding:
 ```json
 {"base_time_utc": "2026-11-15T13:00:00Z", "hours": 49, "cell_deg": 0.2, "count": 240,
@@ -91,6 +97,11 @@ Returns `{"results": [{"label": "Denver, CO, USA", "lat": 39.74, "lon": -104.99,
 ### GET /api/healthz
 Returns `{"status": "ok", "version": "<git sha>"}`. There are no upstream calls, so keep-warm pings are free.
 
+### Headers and fixture mode
+- Every response has `X-Request-ID` (echoed when the request sends a well-formed one). INTERNAL errors put it in `details.request_id`.
+- JSON-mode plans send `Server-Timing: tomtom;dur=…, openmeteo;dur=…, compute;dur=…`. Errors with `retry_after_s` also send `Retry-After`.
+- `PLAN_FIXTURES=1` serves recorded data with no network. `X-Fixture: default | two_routes | no_travel_all | upstream_429 | no_route` picks a scenario (unknown values are 400). The header is ignored in live mode.
+
 ### Error shape (all endpoints)
 ```json
 {"error": {"code": "NO_ROUTE", "message": "No truck route between these points.", "details": {}, "retry_after_s": null}}
@@ -104,6 +115,8 @@ Returns `{"status": "ok", "version": "<git sha>"}`. There are no upstream calls,
 | `UPSTREAM_UNAVAILABLE` | 502 | upstream 5xx or bad payload |
 | `UPSTREAM_TIMEOUT` | 504 | upstream timeout (TomTom 10 s, Open-Meteo 8 s per batch) |
 | `INTERNAL` | 500 | bug; logged with request id |
+
+TomTom `BAD_INPUT` maps to `VALIDATION`, `COMPUTE_TIME_LIMIT_EXCEEDED` to `UPSTREAM_TIMEOUT`, and 401/403 (bad key) to `UPSTREAM_UNAVAILABLE`. 429 and 5xx are retried twice with jittered backoff (1 s, 3 s); timeouts are not retried (the plan has a 25 s total budget).
 
 ## External APIs (verified 2026-11-14; re-verify if behavior surprises you)
 
