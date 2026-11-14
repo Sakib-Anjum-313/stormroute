@@ -31,14 +31,26 @@ export interface LayerInput {
   onClickRoute: (id: string) => void
 }
 
-const GREY: [number, number, number, number] = [120, 128, 140, 255]
-const GREY_HOVER: [number, number, number, number] = [71, 85, 105, 255]
-const CASING: [number, number, number, number] = [255, 255, 255, 230]
+type Rgba = [number, number, number, number]
+const GREY: Rgba = [120, 128, 140, 255]
+const CASING: Rgba = [255, 255, 255, 230]
 const STREAMING: [number, number, number, number] = [120, 128, 140, 200]
 const OUTLINE: [number, number, number, number] = [255, 255, 255, 255]
 const DARK_OUTLINE: [number, number, number, number] = [30, 41, 59, 255]
 
 const getRoutePath = (d: MapRoute) => d.path
+const getRouteColor = (d: MapRoute): Rgba => [d.rgb[0], d.rgb[1], d.rgb[2], 255]
+
+/** Stable one-element arrays, so the hover layer keeps its data identity across frames. */
+const singletons = new WeakMap<MapRoute, MapRoute[]>()
+function singleton(route: MapRoute): MapRoute[] {
+  let data = singletons.get(route)
+  if (!data) {
+    data = [route]
+    singletons.set(route, data)
+  }
+  return data
+}
 const getSegmentPath = (d: MapSegment) => d.path
 const getSegmentColor = (d: MapSegment) => d.color
 const getCheckpointPosition = (d: MapCheckpoint) => d.position
@@ -101,26 +113,31 @@ export function buildLayers(input: LayerInput): Layer[] {
   }
 
   const streaming = plan === null
+  // The selected route gets a casing in its identity color, so the risk-colored line on top of it
+  // still says which route it is.
   layers.push(
     new PathLayer<MapRoute>({
       id: 'routes-casing',
       data: input.routes,
       getPath: getRoutePath,
       positionFormat: 'XY',
-      getColor: CASING,
-      getWidth: (d) => (d.id === selectedRouteId ? 11 : 8),
+      getColor: (d) => (d.id === selectedRouteId && !streaming ? getRouteColor(d) : CASING),
+      getWidth: (d) => (d.id === selectedRouteId && !streaming ? 12 : 8),
       widthUnits: 'pixels',
       capRounded: true,
       jointRounded: true,
-      updateTriggers: { getWidth: selectedRouteId },
+      updateTriggers: {
+        getColor: [selectedRouteId, streaming],
+        getWidth: [selectedRouteId, streaming],
+      },
     }),
     new PathLayer<MapRoute>({
       id: 'routes',
       data: input.routes,
       getPath: getRoutePath,
       positionFormat: 'XY',
-      getColor: (d) => (streaming ? STREAMING : d.id === hoveredRouteId ? GREY_HOVER : GREY),
-      getWidth: (d) => (d.id === hoveredRouteId ? 6 : 4),
+      getColor: streaming ? STREAMING : GREY,
+      getWidth: 4,
       widthUnits: 'pixels',
       capRounded: true,
       jointRounded: true,
@@ -130,9 +147,35 @@ export function buildLayers(input: LayerInput): Layer[] {
         const id = routeIdOf(info)
         if (id) input.onClickRoute(id)
       },
-      updateTriggers: { getColor: [streaming, hoveredRouteId], getWidth: hoveredRouteId },
+      updateTriggers: { getColor: streaming },
     }),
   )
+
+  // Hovering a card or a path draws that route on top in its identity color (unless it is the
+  // selected route, which is already drawn on top in risk colors).
+  const hovered =
+    hoveredRouteId === null ? undefined : input.routes.find((r) => r.id === hoveredRouteId)
+  if (hovered && (hovered.id !== selectedRouteId || streaming)) {
+    layers.push(
+      new PathLayer<MapRoute>({
+        id: 'route-hover',
+        data: singleton(hovered),
+        getPath: getRoutePath,
+        positionFormat: 'XY',
+        getColor: getRouteColor,
+        getWidth: 6,
+        widthUnits: 'pixels',
+        capRounded: true,
+        jointRounded: true,
+        pickable: true,
+        onHover: (info) => input.onHoverRoute(routeIdOf(info)),
+        onClick: (info) => {
+          const id = routeIdOf(info)
+          if (id) input.onClickRoute(id)
+        },
+      }),
+    )
+  }
 
   if (plan && selectedRouteId) {
     const segments = plan.segments[interval][selectedRouteId] ?? []
@@ -143,12 +186,13 @@ export function buildLayers(input: LayerInput): Layer[] {
         getPath: getSegmentPath,
         positionFormat: 'XY',
         getColor: getSegmentColor,
-        getWidth: 6,
+        getWidth: hoveredRouteId === selectedRouteId ? 8 : 6,
         widthUnits: 'pixels',
         capRounded: true,
         jointRounded: true,
         pickable: true,
         onHover: (info) => input.onHoverRoute(routeIdOf(info)),
+        updateTriggers: { getWidth: hoveredRouteId === selectedRouteId },
       }),
     )
   }

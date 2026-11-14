@@ -36,7 +36,12 @@ export default function MapView() {
     exposeTransformForDeck(map)
     map.touchZoomRotate.disableRotation()
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
-    const overlay = new MapboxOverlay({ interleaved: true, layers: [] })
+    const overlay = new MapboxOverlay({
+      interleaved: true,
+      layers: [],
+      getCursor: ({ isDragging, isHovering }) =>
+        isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
+    })
     map.addControl(overlay)
     const disposeScene = createScene(map, overlay)
     return () => {
