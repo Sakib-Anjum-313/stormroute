@@ -29,8 +29,11 @@ services:
         sync: false
       - key: PLAN_FIXTURES
         value: "0"
-      # Trusted proxy hops for DRF throttling. Keep 0 until the smoke test shows how many
-      # X-Forwarded-For entries Render adds (DEPLOY.md step 4.1).
+      # Render is fronted by Cloudflare, which sets CF-Connecting-IP to the real client and
+      # overwrites client-sent values; throttles key on it (falls back to DRF_NUM_PROXIES).
+      - key: CLIENT_IP_HEADER
+        value: CF-Connecting-IP
+      # Fallback only: X-Forwarded-For on Render is appended to and its hop count is undocumented.
       - key: DRF_NUM_PROXIES
         value: "0"
 

@@ -566,6 +566,41 @@ def test_plan_throttle_keys_on_the_proxy_appended_entry(
     assert (response.status_code == 429) is throttled
 
 
+@pytest.mark.parametrize(
+    ("client_ip", "throttled"),
+    [
+        ("198.51.100.1", True),  # same client: its own bucket is full
+        ("198.51.100.2", False),  # another client behind the same proxy: fresh bucket
+        ("not-an-ip", False),  # malformed: falls back to REMOTE_ADDR, a fresh bucket here
+    ],
+)
+def test_plan_throttle_keys_on_the_trusted_client_ip_header(
+    api: Api,
+    upstreams: Upstreams,
+    settings: Any,
+    client_ip: str,
+    throttled: bool,
+) -> None:
+    """On Render all requests share the proxy address; Cloudflare's header tells clients apart."""
+    settings.CLIENT_IP_HEADER = "CF-Connecting-IP"
+    for _ in range(10):
+        response = api(plan_body(), HTTP_CF_CONNECTING_IP="198.51.100.1", REMOTE_ADDR="10.9.9.9")
+        assert response.status_code == 200
+
+    response = api(plan_body(), HTTP_CF_CONNECTING_IP=client_ip, REMOTE_ADDR="10.9.9.9")
+
+    assert (response.status_code == 429) is throttled
+
+
+def test_plan_throttle_ignores_the_client_ip_header_when_not_configured(
+    api: Api, upstreams: Upstreams
+) -> None:
+    for i in range(10):
+        assert api(plan_body(), HTTP_CF_CONNECTING_IP=f"198.51.100.{i}").status_code == 200
+
+    assert api(plan_body(), HTTP_CF_CONNECTING_IP="198.51.100.99").status_code == 429
+
+
 # --- secrets ---------------------------------------------------------------------------
 
 

@@ -107,7 +107,7 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = True
 ```
 - Add one settings test: `RENDER_EXTERNAL_HOSTNAME` ends up in `ALLOWED_HOSTS`.
-- **Throttling behind the proxy:** `DRF_NUM_PROXIES` (default 0) feeds `REST_FRAMEWORK["NUM_PROXIES"]`. At 0, DRF ignores `X-Forwarded-For` and every client shares the proxy's address, so one global 10/min limit applies. `render.yaml` sets it to `0`, which is safe and can't be spoofed. Change it in the API's Environment tab to the hop count that step 4.1 measures (**unverified**: one or two).
+- **Throttling behind the proxy (found on the first deploy):** every request reaches gunicorn from Render's proxy, so with only `DRF_NUM_PROXIES=0` all visitors shared one 10 plans/min bucket. The first live smoke test got 429 on its first plan. Render is fronted by Cloudflare, whose edge sets `CF-Connecting-IP` to the real client and overwrites client-sent values. `X-Forwarded-For` on Render is appended to (spoofable) with an undocumented hop count. So `render.yaml` sets `CLIENT_IP_HEADER=CF-Connecting-IP` and throttles key on that header, falling back to DRF's `NUM_PROXIES` handling when it's missing or malformed. The API logs one line per process, `client ip: header CF-Connecting-IP present=…, x-forwarded-for entries=N` (no IP values), so Render's logs show whether the header arrives.
 
 ### 1.3 Backend start-up
 
@@ -185,7 +185,7 @@ Set `API=https://stormroute-api-phi1.onrender.com` and `WEB=https://stormroute-w
 | Geocode | `curl -s "$API/api/geocode?q=denver"` | 5 results with lat/lon |
 | Plan, cold then warm | `curl -s -o /dev/null -w "%{http_code} %{time_total}s\n" -D - -H 'Accept: application/json' -H 'Content-Type: application/json' -d "$DEMO" $API/api/plan` twice | 200 both times. Read `Server-Timing`: cold ≤ 8 s, warm ≤ 1 s |
 | **Compute on the free CPU** | `compute;dur=` in `Server-Timing` | ≤ 1.5 s. If more, optimize route dedupe and Douglas–Peucker (grid index or simplify before dedupe). They took 120–250 ms on an M1, and the free instance has a fraction of a CPU (**unverified**: Render's free page doesn't state CPU or RAM) |
-| Proxy hops | log `request.META["HTTP_X_FORWARDED_FOR"]` once (temporary debug line or Render logs) | count entries → set `DRF_NUM_PROXIES` in the API's Environment tab |
+| Client IP header arrives | Render → stormroute-api → Logs: search `client ip:` | `present=True`. If `False`, throttles fall back to the shared proxy bucket: report it |
 | Errors are JSON | `curl -s -X POST $API/api/plan -H 'Content-Type: application/json' -d '{}'` | 400 `{"error":{"code":"VALIDATION",...}}` |
 | No debug pages | `curl -s $API/nope` | JSON 404, not Django's yellow page |
 
