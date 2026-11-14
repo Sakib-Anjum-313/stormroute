@@ -112,12 +112,15 @@ Docs: https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-ro
 - `GET https://api.tomtom.com/routing/1/calculateRoute/{lat,lon}:{lat,lon}[:{lat,lon}...]/json?key=…`
 - Parameters we use: `travelMode=truck`, `vehicleWeight=<kg int>` (lb × 0.45359237, rounded), `vehicleCommercial=true`, `maxAlternatives=4` (allowed 0–5), `alternativeType=anyRoute`, `routeType=fastest`, `traffic=true`, `departAt=<RFC3339 with offset>` (cannot combine with `arriveAt`), `computeTravelTimeFor=all`, `extendedRouteRepresentation=distance&extendedRouteRepresentation=travelTime`, `routeRepresentation=polyline`.
 - `routes[].progress[]` gives `{pointIndex, distanceInMeters, travelTimeInSeconds}`, cumulative from the route start. The first and last points always have entries. Interpolate linearly by haversine distance between entries (the docs recommend this).
-- `routes[].summary`: `lengthInMeters`, `travelTimeInSeconds`, `trafficDelayInSeconds`, `departureTime`, `arrivalTime`.
-- `routes[].legs[].points[]`: `{latitude, longitude}`.
+  - **Spike fact:** entries are sparse, not one per point. A route has 63–257 entries, spaced a median of 4.5–12.8 km apart with gaps up to 130 km (on long interstate stretches). Interpolation assumes constant speed within a gap, and README "known limitations" says so.
+- `routes[].summary`: `lengthInMeters`, `travelTimeInSeconds`, `trafficDelayInSeconds`, `trafficLengthInMeters`, `departureTime`, `arrivalTime`, and with `computeTravelTimeFor=all` also `noTrafficTravelTimeInSeconds`, `historicTrafficTravelTimeInSeconds`, `liveTrafficIncidentsTravelTimeInSeconds`.
+- `routes[].legs[].points[]`: `{latitude, longitude}`. There is one leg per OD pair (more with via points). **Spike fact:** the polyline is dense, with 7k–19k points per route (about 1 point per 115 m). Simplify with Douglas–Peucker before sending it to the client. The final progress `distanceInMeters` equals `summary.lengthInMeters`.
+- `routes[].sections[]` holds only `TRAVEL_MODE` unless more `sectionType`s are requested.
 - Errors come in `detailedError.code`: `MAP_MATCHING_FAILURE`, `NO_ROUTE_FOUND`, `BAD_INPUT`, `COMPUTE_TIME_LIMIT_EXCEEDED`. Match on the code, never on the message text.
 - Up to 150 waypoints. A via-point fallback uses `origin:via:dest` with `maxAlternatives=0`.
 - Quota: Freemium gives 2,500 non-tile requests/day, no credit card, commercial use OK (https://developer.tomtom.com/store/maps-api). Routing and search share the quota.
-- UNVERIFIED until the M0 spike: whether `maxAlternatives` is honored with `travelMode=truck` on long US routes, the per-second QPS cap, and whether TomTom's terms allow showing route results on a non-TomTom basemap (fallback: TomTom's MapLibre vector style).
+- **Verified in the M0 spike (2026-11-14, 45,000 lb truck, `maxAlternatives=4`):** truck mode honors alternatives and returns the primary plus up to 4 (4–5 routes for all four test trips: Denver→SLC, Chicago→Denver, Seattle→Boise, Dallas→Albuquerque). Every trip had at least 3 routes sharing under 50% of their length. One Chicago→Denver alternative shared 81% with the primary, so the "most distinct" selection matters. Responses carry **no rate-limit or QPS headers**, so back off on 429 only.
+- Still UNVERIFIED: whether TomTom's terms allow showing route results on a non-TomTom basemap (the terms page is JS-rendered). Fallback: TomTom's MapLibre vector style with the same key.
 
 ### TomTom Fuzzy Search (geocoding and typeahead)
 Docs: https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search
