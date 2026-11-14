@@ -86,7 +86,7 @@ services:
           style-src 'self' 'unsafe-inline';
           img-src 'self' data: blob: https://tiles.openfreemap.org;
           font-src 'self' data:;
-          connect-src 'self' https://stormroute-api-phi1.onrender.com https://tiles.openfreemap.org;
+          connect-src 'self' data: blob: https://stormroute-api-phi1.onrender.com https://tiles.openfreemap.org;
           worker-src 'self' blob:;
           frame-ancestors 'none'
 ```
@@ -94,7 +94,7 @@ services:
 Notes:
 - `ALLOWED_HOSTS` is dropped from the Blueprint. Settings read Render's own hostname instead (1.2), so a renamed or suffixed subdomain can't cause 400s.
 - `fromService` only exposes `host`/`hostport` (private-network host, no `https://`), so it can't fill `VITE_API_BASE_URL` or CORS. Keep them literal and correct them once in step 3.4 if Render assigns a different subdomain.
-- The CSP is strict on purpose. MapLibre needs `worker-src blob:` and inline styles. **Verify in the browser (step 4.2)**: any CSP violation in the console means you loosen the matching directive, not drop the CSP.
+- The CSP is strict on purpose. MapLibre needs `worker-src blob:` and inline styles. deck.gl's `IconLayer` loads its icon atlas with `fetch()` on a `data:` URL, so `connect-src` needs `data:` (found on the first deploy: pins, route letters and truck ghosts were missing). **Verify in the browser (step 4.2)**: any CSP violation in the console means you loosen the matching directive, not drop the CSP.
 
 ### 1.2 `backend/config/settings.py`
 

@@ -81,6 +81,6 @@ services:
           style-src 'self' 'unsafe-inline';
           img-src 'self' data: blob: https://tiles.openfreemap.org;
           font-src 'self' data:;
-          connect-src 'self' https://stormroute-api-phi1.onrender.com https://tiles.openfreemap.org;
+          connect-src 'self' data: blob: https://stormroute-api-phi1.onrender.com https://tiles.openfreemap.org;
           worker-src 'self' blob:;
           frame-ancestors 'none'
