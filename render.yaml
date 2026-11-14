@@ -49,7 +49,7 @@ services:
       - key: NODE_VERSION
         value: "24"
       - key: VITE_API_BASE_URL
-        value: https://stormroute-api.onrender.com
+        value: https://stormroute-api-phi1.onrender.com
     routes:
       - type: rewrite
         source: /*
@@ -78,6 +78,6 @@ services:
           style-src 'self' 'unsafe-inline';
           img-src 'self' data: blob: https://tiles.openfreemap.org;
           font-src 'self' data:;
-          connect-src 'self' https://stormroute-api.onrender.com https://tiles.openfreemap.org;
+          connect-src 'self' https://stormroute-api-phi1.onrender.com https://tiles.openfreemap.org;
           worker-src 'self' blob:;
           frame-ancestors 'none'

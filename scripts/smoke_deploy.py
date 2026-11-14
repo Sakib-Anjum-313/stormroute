@@ -2,7 +2,7 @@
 
 Usage (from repo root):
     uv run --directory backend python ../scripts/smoke_deploy.py \
-        --api https://stormroute-api.onrender.com --web https://stormroute-web.onrender.com
+        --api https://stormroute-api-phi1.onrender.com --web https://stormroute-web.onrender.com
 
 Runs read-only checks plus two plan requests (about 2 TomTom calls and a few hundred Open-Meteo
 locations, then cache hits). Exits non-zero if any check fails. Never prints secrets.
@@ -66,8 +66,11 @@ def run(api: str, web: str) -> list[Check]:
         r = client.get(f"{api}/api/healthz", timeout=COLD_START_TIMEOUT_S)
         body = r.json()
         waited = time.monotonic() - start
-        return r.status_code == 200 and body.get("status") == "ok", (
-            f"version={body.get('version')} ({waited:.1f}s, includes any cold start)"
+        # Our middleware always sets X-Request-ID; its absence means another app answered
+        # (e.g. Render gave our service a suffixed subdomain and the plain one is someone else's).
+        ours = "x-request-id" in r.headers
+        return r.status_code == 200 and body.get("status") == "ok" and ours, (
+            f"version={body.get('version')}, ours={ours} ({waited:.1f}s, includes any cold start)"
         )
 
     def stream() -> tuple[bool, str]:
@@ -175,7 +178,7 @@ def run(api: str, web: str) -> list[Check]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--api", default="https://stormroute-api.onrender.com")
+    parser.add_argument("--api", default="https://stormroute-api-phi1.onrender.com")
     parser.add_argument("--web", default="https://stormroute-web.onrender.com")
     args = parser.parse_args()
     checks = run(args.api.rstrip("/"), args.web.rstrip("/"))

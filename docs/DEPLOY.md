@@ -69,7 +69,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - { key: NODE_VERSION, value: "24" }
-      - { key: VITE_API_BASE_URL, value: https://stormroute-api.onrender.com }
+      - { key: VITE_API_BASE_URL, value: https://stormroute-api-phi1.onrender.com }
     routes:
       - { type: rewrite, source: /*, destination: /index.html }
     headers:
@@ -86,7 +86,7 @@ services:
           style-src 'self' 'unsafe-inline';
           img-src 'self' data: blob: https://tiles.openfreemap.org;
           font-src 'self' data:;
-          connect-src 'self' https://stormroute-api.onrender.com https://tiles.openfreemap.org;
+          connect-src 'self' https://stormroute-api-phi1.onrender.com https://tiles.openfreemap.org;
           worker-src 'self' blob:;
           frame-ancestors 'none'
 ```
@@ -99,7 +99,7 @@ Notes:
 ### 1.2 `backend/config/settings.py`
 
 ```python
-# Render injects RENDER_EXTERNAL_HOSTNAME (e.g. stormroute-api.onrender.com) at build and runtime.
+# Render injects RENDER_EXTERNAL_HOSTNAME (e.g. stormroute-api-phi1.onrender.com) at build and runtime.
 ALLOWED_HOSTS = env("ALLOWED_HOSTS") + [h for h in [os.environ.get("RENDER_EXTERNAL_HOSTNAME")] if h]
 GIT_SHA = env("GIT_SHA", default=os.environ.get("RENDER_GIT_COMMIT", "dev")[:12])
 if not DEBUG:
@@ -125,7 +125,7 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - run: curl -fsS --max-time 90 https://stormroute-api.onrender.com/api/healthz
+      - run: curl -fsS --max-time 90 https://stormroute-api-phi1.onrender.com/api/healthz
 ```
 GitHub may delay scheduled runs by many minutes and disables them after 60 days without repo activity, so this is the **backup**. cron-job.org (step 5) is the primary.
 
@@ -169,7 +169,7 @@ GitHub may delay scheduled runs by many minutes and disables them after 60 days 
 
 ## 4. Smoke tests (run after every deploy that changes behavior)
 
-Set `API=https://stormroute-api.onrender.com` and `WEB=https://stormroute-web.onrender.com`.
+Set `API=https://stormroute-api-phi1.onrender.com` and `WEB=https://stormroute-web.onrender.com`.
 
 ### 4.1 API
 
