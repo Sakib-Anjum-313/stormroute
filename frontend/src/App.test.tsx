@@ -3,31 +3,17 @@ import { render, screen } from '@testing-library/react'
 
 import App from './App'
 
-function renderApp() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
-    <QueryClientProvider client={client}>
+// WebGL is not available in jsdom; the map has its own browser checks (verify-ui, perf script).
+vi.mock('./features/map/MapView', () => ({ default: () => <div data-testid="map" /> }))
+
+test('renders the trip form with submit disabled and the empty-state text', async () => {
+  render(
+    <QueryClientProvider client={new QueryClient()}>
       <App />
     </QueryClientProvider>,
   )
-}
-
-afterEach(() => vi.unstubAllGlobals())
-
-test('shows API status from /api/healthz', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() => Promise.resolve(Response.json({ status: 'ok', version: 'abc123' }))),
-  )
-  renderApp()
-  expect(await screen.findByText('API ok (abc123)')).toBeInTheDocument()
-})
-
-test('shows unreachable when /api/healthz fails', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(() => Promise.resolve(new Response('', { status: 503 }))),
-  )
-  renderApp()
-  expect(await screen.findByText('API unreachable')).toBeInTheDocument()
+  expect(screen.getByRole('form', { name: 'Trip' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Plan route' })).toBeDisabled()
+  expect(screen.getByText(/compare three routes by weather risk/)).toBeInTheDocument()
+  expect(await screen.findByTestId('map')).toBeInTheDocument()
 })
