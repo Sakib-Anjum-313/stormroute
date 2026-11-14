@@ -110,7 +110,7 @@ flowchart LR
 ```
 
 **Request flow for "Plan trip":**
-1. The form validates (zod). `useMutation` POSTs `/api/plan` with `Accept: application/x-ndjson` and an `AbortController` (a resubmit cancels the previous request).
+1. The form validates (zod). `runPlan` POSTs `/api/plan` with `Accept: application/x-ndjson` and an `AbortController` (a resubmit cancels the previous request).
 2. The view validates the serializer, resolves the origin time zone, converts the departure to UTC, and returns `StreamingHttpResponse(planner.stream(req))`.
 3. The planner calls TomTom (cache key = OD, departure rounded to 15 min, weight; TTL 15 min). It dedupes routes and adds via-point detours if fewer than 3 remain. It yields `meta` and `routes`, and the client draws grey routes.
 4. The domain resamples each route at 10/25/50 mi, attaches ETAs from `progress[]` (with HOS stops if the toggle is on), snaps lookup points to 0.1°, and builds the heatmap lattice.
@@ -393,3 +393,10 @@ Headers: `Server-Timing: tomtom;dur=…, openmeteo;dur=…, compute;dur=…` (JS
 - **Contract additions:** `routes[].stops` (HOS stops with mile, position and start time), `recommendation.decisive_step`, warning codes, `X-Request-ID`, `Retry-After`. Recorded in the `api-contracts` skill.
 - **Domain additions** (pure, tested): `polyline.encode/decode` (polyline6), `detours.detour_vias/detour_acceptable` (S10 via points), `eta.distance_m_at` (HOS stop mile). No threshold or comparator changed.
 - **Secrets:** httpx logs request URLs at INFO, which would include the TomTom key, so `httpx`/`httpcore` loggers are at WARNING. Error messages are fixed strings; tests assert the key never appears in any response body, header or log line.
+
+## M3 findings (2026-11-14)
+- **Submit flow:** `features/trip-form/runPlan.ts` owns one `AbortController` (a resubmit aborts the previous stream and ignores its late events) and writes every NDJSON event into the Zustand store. TanStack `useMutation` was dropped: the store already holds phase, progress and error, and a second copy of that state added nothing. TanStack Query still backs geocoding.
+- **MapLibre 6 + deck.gl 9.4:** two incompatibilities, both patched in `features/map`. (1) MapLibre derives its worker URL from its module URL, which Vite's dependency bundling rewrites, so the worker is imported with `?worker&url` and passed to `setWorkerUrl` (`worker.format: 'es'`). (2) `@deck.gl/mapbox` reads `map.transform`, which MapLibre 6 moved to `map._camera.transform`; `maplibreCompat.ts` adds the getter. Remove it once deck.gl supports MapLibre 6.
+- **Heatmap layer:** `SolidPolygonLayer` with the exact `cell_deg` squares built once per plan, instead of `GridCellLayer` (whose cells are square in meters, so they would gap or overlap in longitude). Color comes from one reused blend buffer through `updateTriggers`.
+- **No React on slider ticks:** the map scene (`features/map/scene.ts`) subscribes to the store outside React and coalesces changes into one `overlay.setProps` per frame; the slider input is uncontrolled and its time label is written to the DOM from a store subscription. The render-count test asserts zero commits in the form, the plan panel and the slider during 120 hour updates.
+- **`perf:slider`** (production build, installed Chrome, Apple M1, fixture demo plan): p95 16.7 ms, max 16.8 ms, 0 dropped frames, 0 long tasks, 0 requests, 540 heatmap blends in 10 s of scrubbing; at 4x CPU throttle the same. The first run read p95 16.8 ms with every frame still on vsync. Every frame lands on vsync, and rAF timestamps of vsynced frames jitter around 16.67 ms, so the script's budget is one 60 Hz interval plus 0.5 ms jitter and it also asserts 0 dropped frames. Summary: `frontend/e2e/perf/last-run.json`.
