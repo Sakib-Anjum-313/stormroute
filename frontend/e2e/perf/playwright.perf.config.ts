@@ -1,4 +1,10 @@
+import { fileURLToPath } from 'node:url'
+
 import { defineConfig } from '@playwright/test'
+
+// webServer commands run in this file's directory by default; pin them to the repo layout.
+const FRONTEND_DIR = fileURLToPath(new URL('../..', import.meta.url))
+const BACKEND_DIR = fileURLToPath(new URL('../../../backend', import.meta.url))
 
 /**
  * Slider smoothness run (map-performance skill, "Measuring"). Local only: CI runners are too
@@ -23,7 +29,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'uv run --directory ../backend python manage.py runserver 8000 --noreload',
+      command: 'uv run python manage.py runserver 8000 --noreload',
+      cwd: BACKEND_DIR,
       url: 'http://localhost:8000/api/healthz',
       env: { PLAN_FIXTURES: '1' },
       reuseExistingServer: true,
@@ -31,6 +38,7 @@ export default defineConfig({
     },
     {
       command: 'pnpm build && pnpm preview --port 4173 --strictPort',
+      cwd: FRONTEND_DIR,
       url: 'http://localhost:4173',
       reuseExistingServer: true,
       timeout: 120_000,

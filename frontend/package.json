@@ -13,7 +13,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
     "perf:slider": "playwright test --config e2e/perf/playwright.perf.config.ts",
     "api-types": "pnpm dlx --package=openapi-typescript@7.13.0 --package=typescript@5.9.3 openapi-typescript ../backend/openapi.yaml -o src/lib/api/schema.d.ts && prettier --write src/lib/api/schema.d.ts --ignore-path=''"
   },

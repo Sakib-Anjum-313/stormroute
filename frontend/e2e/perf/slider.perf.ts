@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test, type Page } from '@playwright/test'
 
+// `window.spotterScene` is declared in `../support.ts`.
 declare global {
   interface Window {
     perf: {
@@ -24,7 +25,6 @@ declare global {
       frames: number[]
       longTasks: number[]
     }
-    spotterScene?: { renders: number; frameKey: number; map: { loaded(): boolean } }
   }
 }
 

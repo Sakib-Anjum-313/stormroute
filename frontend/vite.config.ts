@@ -11,7 +11,8 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 2000 },
   server: {
     port: 5173,
-    proxy: { '/api': 'http://localhost:8000' },
+    // `vite preview` reuses this proxy. The E2E run points it at its own fixture API.
+    proxy: { '/api': process.env.API_PROXY_TARGET ?? 'http://localhost:8000' },
   },
   test: {
     environment: 'jsdom',
