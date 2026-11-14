@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 import pytest
 from django.core.cache import cache
 
+from trips.domain.heatmap_grid import choose_lattice
 from trips.services import clock, planner, weather
 from trips.services.fixtures import FixtureRouting, FixtureWeather
 from trips.services.planner import (
@@ -58,6 +60,20 @@ def test_stream_event_order_and_timings() -> None:
     assert isinstance(events[-1], ResultEvent)
     assert p.timings.compute_ms > 0
     assert p.timings.header().startswith("tomtom;dur=")
+
+
+def test_a_corridor_too_big_at_half_a_degree_is_trimmed_not_coarsened(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A 20-cell cap stands in for a coast-to-coast trip against the real 250-cell cap.
+    monkeypatch.setattr(planner, "choose_lattice", functools.partial(choose_lattice, max_cells=20))
+
+    plan = make_planner("trimmed").plan(request())
+
+    assert plan.heatmap.cell_deg == pytest.approx(0.5)
+    assert plan.heatmap.count == 20
+    codes = {w.code: w.message for w in plan.warnings}
+    assert "heatmap_trimmed" in codes["WEATHER_COARSENED"]
 
 
 def test_budget_guard_coarsens_heatmap_then_checkpoints(monkeypatch: pytest.MonkeyPatch) -> None:

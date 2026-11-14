@@ -158,6 +158,7 @@ The exact rules are in the `risk-rules` skill (the single source). Signature:
 
 ### 5.7 Heatmap corridor (`heatmap_grid.py`)
 - Lattice stride `s = 0.1° × k` with `k ∈ {2, 3, 4, 5}`, the smallest that yields ≤ 250 cells. Because it is a multiple of 0.1°, heatmap cells share the cache with checkpoint cells.
+- *Changed after M5:* `k` never goes above 5. Before, the search ran up to `k = 50` (5° cells, whose corridor radius reached about 400 km) on very long trips. If the 0.5° corridor still has more than 250 cells, the planner keeps the 250 cells nearest a route (the corridor narrows, the cells stay 0.5°) and adds `heatmap_trimmed` to the `WEATHER_COARSENED` warning.
 - Corridor = lattice points inside the union bounding box, ± buffer, whose distance to any route (simplified with Douglas–Peucker at 500 m, equirectangular local projection) is ≤ `max(0.75 × s × 111 km, 20 km)`.
 - Values for frames `k = 0..48` at `T0 + k h` use the same `wind_at` and `precip_at` functions and `assess(…, weight_lb)`.
 - Encoding: `levels` Uint8 (255 = no data), `wind×10`, `rain×1000`, `snow×100` as Uint16 LE (65535 = no data), frame-major, base64.

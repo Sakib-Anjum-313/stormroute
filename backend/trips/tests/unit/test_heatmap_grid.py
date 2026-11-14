@@ -11,6 +11,7 @@ from trips.domain.heatmap_grid import (
     HOURS,
     LEVEL_NO_DATA,
     MAX_CELLS,
+    MAX_STRIDE_K,
     U16_NO_DATA,
     build_frames,
     choose_lattice,
@@ -72,8 +73,41 @@ def test_choose_lattice_coarsens_until_under_cap() -> None:
     assert fine.stride_k == 2
     assert coarse.stride_k > 2
     assert len(coarse.cells) <= 10
+    assert not fine.trimmed
     with pytest.raises(ValueError, match="cell cap"):
         choose_lattice([line], max_cells=0)
+
+
+def test_choose_lattice_never_coarsens_past_half_a_degree_it_narrows_instead() -> None:
+    # 40 degrees of longitude at lat 40.2: at 0.5 deg the corridor holds row 40.0 (22 km away)
+    # and row 40.5 (33 km away), 162 cells, so a cap of 100 cannot be met by coarsening.
+    line = [LatLon(40.2, -120.0 + 0.05 * i) for i in range(801)]
+    full = corridor_cells([line], MAX_STRIDE_K)
+    assert len(full) == 162
+
+    lattice = choose_lattice([line], max_cells=100)
+
+    assert MAX_STRIDE_K == 5
+    assert lattice.stride_k == MAX_STRIDE_K
+    assert lattice.cell_deg == pytest.approx(0.5)
+    assert lattice.trimmed
+    assert len(lattice.cells) == 100
+    assert {c for c in full if c[0] == 40.0} <= set(lattice.cells)  # the nearest row is whole
+    index = PolylineIndex([line], corridor_radius_m(0.5))
+    kept = [index.distance_m(LatLon(*c)) for c in lattice.cells]
+    dropped = [index.distance_m(LatLon(*c)) for c in full if c not in set(lattice.cells)]
+    assert max(kept) <= min(dropped)
+    assert list(lattice.cells) == [c for c in full if c in set(lattice.cells)]  # lattice order
+    assert choose_lattice([line], max_cells=100) == lattice  # deterministic
+
+
+@pytest.mark.parametrize("min_k", [2, 5, 6])
+def test_choose_lattice_stride_stays_within_bounds(min_k: int) -> None:
+    line = [LatLon(40.2, -120.0 + 0.05 * i) for i in range(801)]
+    lattice = choose_lattice([line], max_cells=MAX_CELLS, min_k=min_k)
+    assert lattice.stride_k == max(2, min(min_k, MAX_STRIDE_K))
+    assert len(lattice.cells) <= MAX_CELLS
+    assert not lattice.trimmed  # 162 cells fit at 0.5 deg
 
 
 def flat(value: float | None, n: int = 60) -> HourlySeries:

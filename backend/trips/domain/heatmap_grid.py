@@ -1,8 +1,11 @@
 """Corridor heatmap lattice, 49 hourly frames and binary encoding (PLAN §5.7).
 
-- Lattice stride ``s = 0.1° x k`` with ``k`` starting at 2: the smallest ``k`` whose corridor has
-  at most 250 cells. Strides are multiples of 0.1°, so heatmap cells share the weather cache
-  with checkpoint cells.
+- Lattice stride ``s = 0.1° x k`` with ``k`` in 2..5: the smallest ``k`` whose corridor has at
+  most 250 cells. Strides are multiples of 0.1°, so heatmap cells share the weather cache with
+  checkpoint cells.
+- Cells never get coarser than 0.5°: a wider cell would describe weather hundreds of km from the
+  road. If the 0.5° corridor still has too many cells (very long trips), it is narrowed instead:
+  only the cells nearest the routes are kept and the lattice is marked ``trimmed``.
 - Corridor = lattice points in the routes' bounding box ± buffer whose distance to any route is
   at most ``max(0.75 x s x 111 km, 20 km)``.
 - Frame ``h`` is at ``T0 + h hours`` with ``T0 = floor_hour(departure_utc)`` and uses the same
@@ -26,8 +29,8 @@ from trips.domain.types import Cell, LatLon, LocationSeries
 
 MAX_CELLS = 250
 MIN_STRIDE_K = 2
-MAX_STRIDE_K = 50
-"""Safety stop for the stride search (5°); far beyond any real corridor."""
+MAX_STRIDE_K = 5
+"""Coarsest stride (0.5°). Past it the corridor is narrowed instead (``Lattice.trimmed``)."""
 HOURS = 49
 """Frames 0..48 inclusive."""
 MIN_RADIUS_M = 20_000.0
@@ -76,6 +79,8 @@ def corridor_cells(polylines: Sequence[Sequence[LatLon]], stride_k: int) -> list
 class Lattice:
     stride_k: int
     cells: tuple[Cell, ...]
+    trimmed: bool = False
+    """The corridor at the coarsest stride was cut down to the cells nearest the routes."""
 
     @property
     def cell_deg(self) -> float:
@@ -87,12 +92,23 @@ def choose_lattice(
     max_cells: int = MAX_CELLS,
     min_k: int = MIN_STRIDE_K,
 ) -> Lattice:
-    """The smallest stride ``k >= min_k`` whose corridor has at most ``max_cells`` cells."""
-    for k in range(min_k, MAX_STRIDE_K + 1):
+    """The smallest stride ``k`` in ``[min_k, MAX_STRIDE_K]`` whose corridor has at most
+    ``max_cells`` cells (``min_k`` is capped at ``MAX_STRIDE_K``).
+
+    If even the coarsest corridor is too big, keep its ``max_cells`` cells nearest a route (ties
+    by lat, lon) in lattice order, and mark the lattice ``trimmed``.
+    """
+    if max_cells < 1:
+        raise ValueError("the heatmap cell cap must be at least 1")
+    for k in range(min(min_k, MAX_STRIDE_K), MAX_STRIDE_K + 1):
         cells = corridor_cells(polylines, k)
         if len(cells) <= max_cells:
             return Lattice(stride_k=k, cells=tuple(cells))
-    raise ValueError("corridor too large for the heatmap cell cap")
+    # `cells` is now the corridor at MAX_STRIDE_K.
+    index = PolylineIndex(polylines, corridor_radius_m(MAX_STRIDE_K / 10))
+    nearest = sorted(cells, key=lambda c: (index.distance_m(LatLon(*c)), c))[:max_cells]
+    keep = set(nearest)
+    return Lattice(stride_k=MAX_STRIDE_K, cells=tuple(c for c in cells if c in keep), trimmed=True)
 
 
 @dataclass(frozen=True, slots=True)

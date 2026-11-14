@@ -26,6 +26,7 @@ from trips.domain.detours import detour_acceptable, detour_vias
 from trips.domain.eta import TimeAnchors, distance_m_at, time_anchors
 from trips.domain.geometry import METERS_PER_MILE, simplify, snap
 from trips.domain.heatmap_grid import (
+    MAX_STRIDE_K,
     MIN_STRIDE_K,
     EncodedHeatmap,
     Lattice,
@@ -61,7 +62,6 @@ ROUTES_TO_SHOW = 3
 TOTAL_BUDGET_S = 25.0
 DISPLAY_TOLERANCE_M = 20.0
 LATTICE_TOLERANCE_M = 500.0
-MAX_HEATMAP_STRIDE_K = 5
 COARSE_SNAP_DEG = 0.2
 ROUTE_LABELS = "ABCDEFGH"
 ROUTE_PHASE_TTL_S = 15 * 60
@@ -393,10 +393,12 @@ class Planner:
         }
         plan = _LookupPlan(checkpoints, choose_lattice(lattice_lines, min_k=MIN_STRIDE_K))
         # Budget guard (PLAN §5.4): coarsen the heatmap first, then checkpoint snapping.
-        while len(plan.cells()) > MAX_LOCATIONS and plan.lattice.stride_k < MAX_HEATMAP_STRIDE_K:
+        while len(plan.cells()) > MAX_LOCATIONS and plan.lattice.stride_k < MAX_STRIDE_K:
             plan.lattice = choose_lattice(lattice_lines, min_k=plan.lattice.stride_k + 1)
             if "heatmap" not in plan.coarsened:
                 plan.coarsened.append("heatmap")
+        if plan.lattice.trimmed:
+            plan.coarsened.append("heatmap_trimmed")
         for intervals, name in (((25, 50), "checkpoints_25_50"), ((10,), "checkpoints_10")):
             if len(plan.cells()) <= MAX_LOCATIONS:
                 break
