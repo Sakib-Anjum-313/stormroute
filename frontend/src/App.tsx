@@ -164,7 +164,7 @@ export default function App() {
           <Legend compact />
         </div>
         <ThemeToggle className="absolute top-[76px] right-2.5 md:hidden" />
-        <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end gap-3 md:inset-x-3 md:bottom-8">
+        <div className="pointer-events-none absolute inset-x-2 bottom-7 flex items-end gap-3 md:inset-x-3 md:bottom-8">
           <div className="max-w-xl min-w-0 flex-1">
             <TimeSlider />
           </div>
