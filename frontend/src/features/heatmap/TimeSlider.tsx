@@ -86,18 +86,20 @@ export function TimeSlider() {
   }
 
   return (
-    <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur">
+    <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-line bg-surface/95 px-3 py-2 shadow-lg backdrop-blur">
       <button
         type="button"
         onClick={togglePlay}
         aria-label={playing ? 'Pause heatmap' : 'Play heatmap'}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sky-700 text-white hover:bg-sky-800 focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none"
       >
         <span aria-hidden>{playing ? '❚❚' : '▶'}</span>
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-baseline justify-between gap-2 text-xs text-slate-600">
-          <span className="font-medium text-slate-800">Weather along the corridor</span>
+        <div className="flex items-baseline justify-between gap-2 text-xs text-ink-2">
+          <span className="font-medium text-ink">
+            Weather<span className="max-sm:hidden"> along the corridor</span>
+          </span>
           <output ref={labelRef} htmlFor="heatmap-hour" className="tabular-nums" />
         </div>
         <input
@@ -112,10 +114,10 @@ export function TimeSlider() {
           onInput={(event) => writeCoalesced(event.currentTarget.valueAsNumber)}
           onPointerDown={() => setPlaying(false)}
           onKeyDown={onKeyDown}
-          className="w-full accent-sky-700"
+          className="w-full accent-[var(--accent)]"
           data-testid="heatmap-slider"
         />
-        <div className="flex justify-between text-[10px] text-slate-400" aria-hidden>
+        <div className="flex justify-between text-[10px] text-ink-3" aria-hidden>
           <span>0 h</span>
           <span>12 h</span>
           <span>24 h</span>

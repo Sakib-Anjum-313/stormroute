@@ -95,7 +95,7 @@ export function TripForm({ onSubmit }: TripFormProps) {
 
       <div className="grid grid-cols-[minmax(0,1fr)_8rem] gap-3">
         <div>
-          <label htmlFor="departure" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="departure" className="mb-1 block text-sm font-medium text-ink-2">
             Departure{originTz ? ` (${originTz})` : ''}
           </label>
           <input
@@ -105,16 +105,16 @@ export function TripForm({ onSubmit }: TripFormProps) {
             onChange={(e) => update('departureLocal', e.target.value)}
             aria-invalid={shown.departureLocal ? true : undefined}
             aria-describedby={shown.departureLocal ? 'departure-error' : undefined}
-            className="w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm shadow-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/30 aria-invalid:border-red-500"
+            className="w-full rounded-md border border-line-strong bg-surface px-2 py-2 text-sm shadow-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 aria-invalid:border-red-500"
           />
           {shown.departureLocal && (
-            <p id="departure-error" className="mt-1 text-xs text-red-600">
+            <p id="departure-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
               {shown.departureLocal}
             </p>
           )}
         </div>
         <div>
-          <label htmlFor="weight" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="weight" className="mb-1 block text-sm font-medium text-ink-2">
             Load weight
           </label>
           <div className="relative">
@@ -131,29 +131,31 @@ export function TripForm({ onSubmit }: TripFormProps) {
               }
               aria-invalid={shown.loadWeightLb ? true : undefined}
               aria-describedby={shown.loadWeightLb ? 'weight-error' : undefined}
-              className="w-full rounded-md border border-slate-300 bg-white py-2 pr-9 pl-2 text-sm shadow-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/30 aria-invalid:border-red-500"
+              className="w-full rounded-md border border-line-strong bg-surface py-2 pr-9 pl-2 text-sm shadow-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 aria-invalid:border-red-500"
             />
-            <span className="pointer-events-none absolute top-2 right-2 text-sm text-slate-500">
+            <span className="pointer-events-none absolute top-2 right-2 text-sm text-ink-3">
               lb
             </span>
           </div>
           {shown.loadWeightLb && (
-            <p id="weight-error" className="mt-1 text-xs text-red-600">
+            <p id="weight-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
               {shown.loadWeightLb}
             </p>
           )}
           {!shown.loadWeightLb && overLimit && (
-            <p className="mt-1 text-xs text-amber-700">Over the 80,000 lb federal gross limit</p>
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+              Over the 80,000 lb federal gross limit
+            </p>
           )}
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-slate-700">
+      <label className="flex items-center gap-2 text-sm text-ink-2">
         <input
           type="checkbox"
           checked={draft.applyHos}
           onChange={(e) => update('applyHos', e.target.checked)}
-          className="size-4 accent-sky-700"
+          className="size-4 accent-[var(--accent)]"
         />
         Include hours-of-service breaks (30 min after 8 h, 10 h rest after 11 h)
       </label>
@@ -162,7 +164,7 @@ export function TripForm({ onSubmit }: TripFormProps) {
         <button
           type="submit"
           disabled={!canSubmit || waking}
-          className="flex-1 rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-800 focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="flex-1 rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-ink shadow-sm hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-line-strong disabled:text-ink-3"
         >
           {waking ? 'Waiting for server…' : busy ? 'Planning…' : 'Plan route'}
         </button>
@@ -170,7 +172,7 @@ export function TripForm({ onSubmit }: TripFormProps) {
           type="button"
           onClick={runDemo}
           disabled={waking}
-          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:outline-none"
+          className="rounded-md border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-ink-2 shadow-sm hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
         >
           Try demo trip
         </button>

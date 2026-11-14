@@ -12,6 +12,7 @@ import { TripForm } from './features/trip-form/TripForm'
 import type { PlanRequest } from './lib/api/types'
 import { MOBILE_QUERY, useMediaQuery } from './lib/hooks/useMediaQuery'
 import { usePlanStore } from './store/planStore'
+import { ThemeToggle } from './ui/ThemeToggle'
 
 // maplibre-gl and deck.gl load in their own chunk so the form paints first (map-performance rule 9).
 const MapView = lazy(() => import('./features/map/MapView'))
@@ -127,6 +128,7 @@ export default function App() {
         <div className="pointer-events-none absolute top-2 left-2 md:hidden">
           <Legend compact />
         </div>
+        <ThemeToggle className="absolute top-[76px] right-2.5 md:hidden" />
         <div className="pointer-events-none absolute inset-x-2 bottom-2 flex items-end gap-3 md:inset-x-3 md:bottom-8">
           <div className="max-w-xl min-w-0 flex-1">
             <TimeSlider />
@@ -138,9 +140,12 @@ export default function App() {
       </main>
 
       <aside className="flex min-h-0 flex-1 flex-col border-t border-line bg-surface shadow-[0_-4px_12px_rgb(0_0_0/0.06)] md:order-1 md:w-[400px] md:flex-none md:border-t-0 md:border-r md:shadow-none">
-        <header className="hidden px-5 pt-5 md:block">
-          <h1 className="text-lg font-semibold tracking-tight">Spotter</h1>
-          <p className="text-sm text-ink-3">Weather-aware truck routing</p>
+        <header className="hidden items-start justify-between px-5 pt-5 md:flex">
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Spotter</h1>
+            <p className="text-sm text-ink-3">Weather-aware truck routing</p>
+          </div>
+          <ThemeToggle />
         </header>
         {mobile && <SheetTabs tab={tab} onChange={setTab} />}
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 md:p-5">

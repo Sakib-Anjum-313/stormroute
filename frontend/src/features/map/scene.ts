@@ -18,6 +18,7 @@ import {
   usePlanStore,
   type PlanState,
 } from '../../store/planStore'
+import { useTheme, type Theme } from '../../store/theme'
 import { buildHeatCells, buildLayers, type HeatCell } from './buildLayers'
 import { getIconAtlas } from './iconAtlas'
 import {
@@ -51,9 +52,16 @@ export function firstSymbolLayerId(map: MaplibreMap): string | undefined {
   return map.getStyle().layers.find((layer) => layer.type === 'symbol')?.id
 }
 
-export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => void {
+export interface Scene {
+  /** Swap the basemap style (light/dark) and re-attach the deck layers once it has loaded. */
+  setBasemap: (styleUrl: string, theme: Theme) => void
+  dispose: () => void
+}
+
+export function createScene(map: MaplibreMap, overlay: MapboxOverlay): Scene {
   let beforeId: string | undefined
   let ready = false
+  let theme: Theme = useTheme.getState().theme
   let frame = 0
   let heatDirty = true
   let frameKey = 0
@@ -161,6 +169,7 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
       frameKey,
       beforeId,
       pinnedCheckpoint,
+      dark: theme === 'dark',
       atlas: getIconAtlas(),
       labels,
       stops,
@@ -225,6 +234,18 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
   if (map.isStyleLoaded()) onLoad()
   else map.once('load', onLoad)
 
+  function setBasemap(styleUrl: string, nextTheme: Theme) {
+    theme = nextTheme
+    // Detach deck's layers first: their `beforeId` names a layer of the old style, which the new
+    // style may not have. They come back on `style.load` with the new style's first symbol layer.
+    ready = false
+    if (frame) cancelAnimationFrame(frame)
+    frame = 0
+    overlay.setProps({ layers: [] })
+    map.once('style.load', onLoad)
+    map.setStyle(styleUrl)
+  }
+
   const canvas = map.getCanvas()
   const onLeave = () => {
     setHoveredRoute(null)
@@ -232,7 +253,7 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
   }
   canvas.addEventListener('mouseleave', onLeave)
 
-  return () => {
+  const dispose = () => {
     unsubscribe()
     if (frame) cancelAnimationFrame(frame)
     canvas.removeEventListener('mouseleave', onLeave)
@@ -240,4 +261,5 @@ export function createScene(map: MaplibreMap, overlay: MapboxOverlay): () => voi
     map.off('movestart', onMoveStart)
     if (window.spotterScene === debug) delete window.spotterScene
   }
+  return { setBasemap, dispose }
 }

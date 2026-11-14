@@ -6,9 +6,13 @@ import { useEffect, useRef, useState } from 'react'
 
 import { MapPopover } from './MapPopover'
 import { exposeTransformForDeck } from './maplibreCompat'
+import { useTheme, type Theme } from '../../store/theme'
 import { createScene } from './scene'
 
-export const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
+const BASEMAP_STYLE: Record<Theme, string> = {
+  light: 'https://tiles.openfreemap.org/styles/positron',
+  dark: 'https://tiles.openfreemap.org/styles/dark',
+}
 // MapLibre derives its worker URL from its own module URL, which Vite's dependency bundling
 // rewrites. Let Vite build the worker as a worker entry and point MapLibre at it.
 setWorkerUrl(workerUrl)
@@ -30,7 +34,7 @@ export default function MapView() {
     if (!container) return
     const instance = new MaplibreMap({
       container,
-      style: BASEMAP_STYLE,
+      style: BASEMAP_STYLE[useTheme.getState().theme],
       center: US_CENTER,
       zoom: 3.4,
       attributionControl: { compact: true },
@@ -38,6 +42,12 @@ export default function MapView() {
       pitchWithRotate: false,
     })
     exposeTransformForDeck(instance)
+    // The OpenFreeMap dark style references a sprite icon ("circle-11") its sprite sheet lacks;
+    // answer such requests with a transparent pixel instead of a console warning per tile.
+    instance.setMissingStyleImageResolver((id) => {
+      if (!instance.hasImage(id))
+        instance.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) })
+    })
     instance.touchZoomRotate.disableRotation()
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right')
     const overlay = new MapboxOverlay({
@@ -47,11 +57,16 @@ export default function MapView() {
         isDragging ? 'grabbing' : isHovering ? 'pointer' : 'grab',
     })
     instance.addControl(overlay)
-    const disposeScene = createScene(instance, overlay)
+    const scene = createScene(instance, overlay)
+    // Theme changes swap the basemap style; the scene re-attaches the deck layers afterwards.
+    const unsubscribeTheme = useTheme.subscribe((state, prev) => {
+      if (state.theme !== prev.theme) scene.setBasemap(BASEMAP_STYLE[state.theme], state.theme)
+    })
     setMap(instance)
     return () => {
       setMap(null)
-      disposeScene()
+      unsubscribeTheme()
+      scene.dispose()
       instance.removeControl(overlay)
       instance.remove()
     }

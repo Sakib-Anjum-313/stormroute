@@ -104,7 +104,7 @@ export function PlaceCombobox({
 
   return (
     <div className="relative">
-      <label htmlFor={inputId} className="mb-1 block text-sm font-medium text-slate-700">
+      <label htmlFor={inputId} className="mb-1 block text-sm font-medium text-ink-2">
         {label}
       </label>
       <input
@@ -131,11 +131,11 @@ export function PlaceCombobox({
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
-        className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-600/30 aria-invalid:border-red-500"
+        className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-sm shadow-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/30 aria-invalid:border-red-500"
       />
       {value && (
         <span
-          className="pointer-events-none absolute top-8 right-3 text-xs text-emerald-700"
+          className="pointer-events-none absolute top-8 right-3 text-xs text-emerald-700 dark:text-emerald-400"
           aria-hidden
         >
           ✓
@@ -146,7 +146,7 @@ export function PlaceCombobox({
         role="listbox"
         aria-label={`${label} suggestions`}
         hidden={!showList}
-        className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg"
+        className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-line bg-surface py-1 text-sm shadow-lg"
       >
         {options.map((option, i) => (
           <div
@@ -160,15 +160,15 @@ export function PlaceCombobox({
               event.preventDefault()
               pick(option)
             }}
-            className="cursor-pointer px-3 py-2 aria-selected:bg-sky-50 hover:bg-slate-50"
+            className="cursor-pointer px-3 py-2 aria-selected:bg-accent-soft hover:bg-surface-2"
           >
             {option.label}
           </div>
         ))}
       </div>
-      {open && status && <output className="mt-1 block text-xs text-slate-500">{status}</output>}
+      {open && status && <output className="mt-1 block text-xs text-ink-3">{status}</output>}
       {error && (
-        <p id={errorId} className="mt-1 text-xs text-red-600">
+        <p id={errorId} className="mt-1 text-xs text-red-600 dark:text-red-400">
           {error}
         </p>
       )}

@@ -6,7 +6,7 @@ export function Legend({ compact = false }: { compact?: boolean }) {
   return (
     <ul
       aria-label="Risk levels"
-      className="pointer-events-auto space-y-0.5 rounded-lg border border-slate-200 bg-white/95 px-2.5 py-2 text-xs text-slate-700 shadow"
+      className="pointer-events-auto space-y-0.5 rounded-lg border border-line bg-surface/95 px-2.5 py-2 text-xs text-ink-2 shadow"
     >
       {RISK_LEVELS.map((level) => (
         <li key={level} className="flex items-center gap-2">

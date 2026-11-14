@@ -31,6 +31,8 @@ export interface LayerInput {
   beforeId: string | undefined
   /** The checkpoint whose popup is open (drawn with a ring). */
   pinnedCheckpoint: MapCheckpoint | null
+  /** Dark basemap: dark casings instead of white. */
+  dark: boolean
   atlas: IconAtlas
   labels: readonly LabelDatum[]
   stops: readonly StopDatum[]
@@ -43,6 +45,7 @@ export interface LayerInput {
 type Rgba = [number, number, number, number]
 const GREY: Rgba = [120, 128, 140, 255]
 const CASING: Rgba = [255, 255, 255, 230]
+const CASING_DARK: Rgba = [10, 13, 18, 230]
 const STREAMING: [number, number, number, number] = [120, 128, 140, 200]
 const OUTLINE: [number, number, number, number] = [255, 255, 255, 255]
 const DARK_OUTLINE: [number, number, number, number] = [30, 41, 59, 255]
@@ -133,6 +136,7 @@ export function buildLayers(input: LayerInput): Layer[] {
   }
 
   const streaming = plan === null
+  const casing = input.dark ? CASING_DARK : CASING
   // The selected route gets a casing in its identity color, so the risk-colored line on top of it
   // still says which route it is.
   layers.push(
@@ -141,7 +145,7 @@ export function buildLayers(input: LayerInput): Layer[] {
       data: input.routes,
       getPath: getRoutePath,
       positionFormat: 'XY',
-      getColor: (d) => (d.id === selectedRouteId && !streaming ? getRouteColor(d) : CASING),
+      getColor: (d) => (d.id === selectedRouteId && !streaming ? getRouteColor(d) : casing),
       getWidth: (d) => (d.id === selectedRouteId && !streaming ? 12 : 8),
       widthUnits: 'pixels',
       capRounded: true,

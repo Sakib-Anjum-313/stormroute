@@ -22,6 +22,7 @@ function input(overrides: Partial<LayerInput> = {}): LayerInput {
     frameKey: 0,
     beforeId: undefined,
     pinnedCheckpoint: null,
+    dark: false,
     atlas: getIconAtlas(),
     labels,
     stops: [],
