@@ -1,42 +1,55 @@
-# Render Blueprint: free API web service + free static site for the SPA.
-# Secrets (TOMTOM_API_KEY) are set in the Render dashboard, never here.
+# Render Blueprint: free API web service (Docker) + free static site for the SPA.
+# Runbook: docs/DEPLOY.md. Secrets (TOMTOM_API_KEY) are entered in the Render dashboard, never here.
+#
+# If Render gives a service a suffixed subdomain (e.g. stormroute-api-ab12.onrender.com), update
+# CORS_ALLOWED_ORIGINS, VITE_API_BASE_URL and the CSP connect-src below once (DEPLOY.md step 3.4).
 services:
   - type: web
-    name: spotter-api
+    name: stormroute-api
     runtime: docker
     plan: free
     region: oregon
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    # Paths are relative to the repo root (Blueprint spec), so no rootDir here.
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    buildFilter:
+      paths: ["backend/**"]
+      ignoredPaths: ["backend/trips/tests/**"]
     healthCheckPath: /api/healthz
-    autoDeploy: true
+    autoDeployTrigger: checksPass
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
       - key: DJANGO_DEBUG
         value: "0"
-      - key: ALLOWED_HOSTS
-        value: spotter-api.onrender.com
+      # ALLOWED_HOSTS: settings add Render's RENDER_EXTERNAL_HOSTNAME automatically.
       - key: CORS_ALLOWED_ORIGINS
-        value: https://spotter-web.onrender.com
+        value: https://stormroute-web.onrender.com
       - key: TOMTOM_API_KEY
         sync: false
       - key: PLAN_FIXTURES
         value: "0"
-      # Proxy hops in front of the app (docs/DEPLOY.md, "Proxy hops"); prompted at blueprint creation.
+      # Trusted proxy hops for DRF throttling. Keep 0 until the smoke test shows how many
+      # X-Forwarded-For entries Render adds (DEPLOY.md step 4.1).
       - key: DRF_NUM_PROXIES
-        sync: false
+        value: "0"
 
   - type: web
-    name: spotter-web
+    name: stormroute-web
     runtime: static
     rootDir: frontend
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    buildFilter:
+      paths: ["frontend/**"]
+      ignoredPaths: ["frontend/e2e/**"]
+    autoDeployTrigger: checksPass
+    # Render's preinstalled pnpm is unreliable and corepack may be unavailable: pin pnpm via npx.
+    buildCommand: npx --yes pnpm@11.1.1 install --frozen-lockfile && npx --yes pnpm@11.1.1 run build
     staticPublishPath: ./dist
-    autoDeploy: true
     envVars:
+      - key: NODE_VERSION
+        value: "24"
       - key: VITE_API_BASE_URL
-        value: https://spotter-api.onrender.com
+        value: https://stormroute-api.onrender.com
     routes:
       - type: rewrite
         source: /*
@@ -45,3 +58,26 @@ services:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Content-Security-Policy
+        value: >-
+          default-src 'self';
+          script-src 'self';
+          style-src 'self' 'unsafe-inline';
+          img-src 'self' data: blob: https://tiles.openfreemap.org;
+          font-src 'self' data:;
+          connect-src 'self' https://stormroute-api.onrender.com https://tiles.openfreemap.org;
+          worker-src 'self' blob:;
+          frame-ancestors 'none'

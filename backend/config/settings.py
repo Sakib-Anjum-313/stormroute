@@ -4,6 +4,7 @@ All configuration comes from environment variables (see backend/.env.example).
 The app is stateless: there are no models and no database is required.
 """
 
+import os
 from pathlib import Path
 
 import environ
@@ -20,7 +21,6 @@ env = environ.Env(
     OPEN_METEO_API_KEY=(str, ""),
     REDIS_URL=(str, ""),
     PLAN_FIXTURES=(bool, False),
-    GIT_SHA=(str, "dev"),
     TOMTOM_BASE_URL=(str, "https://api.tomtom.com"),
     DRF_NUM_PROXIES=(int, 0),
     PLAN_THROTTLE_RATE=(str, "10/min"),
@@ -30,6 +30,9 @@ environ.Env.read_env(BASE_DIR / ".env", overwrite=False)
 DEBUG: bool = env("DJANGO_DEBUG")
 SECRET_KEY: str = env("DJANGO_SECRET_KEY", default="dev-insecure-change-me" if DEBUG else None)
 ALLOWED_HOSTS: list[str] = env("ALLOWED_HOSTS")
+# Render injects the service's own onrender.com hostname, so a suffixed subdomain still works.
+if render_host := os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
+    ALLOWED_HOSTS.append(render_host)
 
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
@@ -143,10 +146,12 @@ TOMTOM_BASE_URL: str = env("TOMTOM_BASE_URL")
 OPEN_METEO_BASE_URL: str = env("OPEN_METEO_BASE_URL")
 OPEN_METEO_API_KEY: str = env("OPEN_METEO_API_KEY")
 PLAN_FIXTURES: bool = env("PLAN_FIXTURES")
-GIT_SHA: str = env("GIT_SHA")
+GIT_SHA: str = env("GIT_SHA", default=os.environ.get("RENDER_GIT_COMMIT", "dev")[:12])
 UPSTREAM_RETRY_DELAYS_S: tuple[float, ...] = (1.0, 3.0)
 """Backoff before each retry of a 429/5xx (jittered ±25%). Tests set this to zeros."""
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 86_400  # 1 day: enough for a review window, easy to undo
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
