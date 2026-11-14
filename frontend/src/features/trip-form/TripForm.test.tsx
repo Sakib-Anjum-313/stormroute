@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import type { GeocodeResult, PlanRequest } from '../../lib/api/types'
+import { useApiStatus } from '../../store/apiStatus'
 import { initialPlanState, usePlanStore } from '../../store/planStore'
 import { validateTrip, type TripFormDraft } from './schema'
 import { TripForm } from './TripForm'
@@ -164,4 +165,18 @@ describe('validateTrip', () => {
     expect(validateTrip({ ...base, loadWeightLb: 1 }).ok).toBe(true)
     expect(validateTrip({ ...base, loadWeightLb: 200_000 }).ok).toBe(true)
   })
+})
+
+test('submit and the demo button are held while the server wakes up', async () => {
+  usePlanStore.setState({ ...initialPlanState })
+  useApiStatus.setState({ status: 'waking' })
+  const { onSubmit, user } = renderForm()
+  expect(screen.getByRole('button', { name: 'Waiting for server…' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Try demo trip' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Try demo trip' }))
+  expect(onSubmit).not.toHaveBeenCalled()
+
+  act(() => useApiStatus.setState({ status: 'ready' }))
+  await user.click(screen.getByRole('button', { name: 'Try demo trip' }))
+  expect(onSubmit).toHaveBeenCalledTimes(1)
 })

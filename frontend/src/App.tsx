@@ -4,7 +4,9 @@ import { WhyPanel } from './features/explain/WhyPanel'
 import { TimeSlider } from './features/heatmap/TimeSlider'
 import { Legend } from './features/map/Legend'
 import { PlanStatus } from './features/routes/PlanStatus'
+import { PlanBanners } from './features/routes/PlanBanners'
 import { RouteList } from './features/routes/RouteList'
+import { ServerStatus } from './features/status/ServerStatus'
 import { runPlan } from './features/trip-form/runPlan'
 import { TripForm } from './features/trip-form/TripForm'
 import type { PlanRequest } from './lib/api/types'
@@ -22,10 +24,12 @@ export default function App() {
           <h1 className="text-lg font-semibold tracking-tight">Spotter</h1>
           <p className="text-sm text-slate-500">Weather-aware truck routing</p>
         </header>
+        <ServerStatus />
         <TripForm onSubmit={submitPlan} />
         <section aria-label="Plan">
           <PlanStatus />
         </section>
+        <PlanBanners />
         <RouteList />
         <WhyPanel />
         <footer className="mt-auto text-[11px] text-slate-400">

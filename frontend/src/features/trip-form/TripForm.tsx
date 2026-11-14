@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 
 import type { Place, PlanRequest } from '../../lib/api/types'
+import { useApiStatus } from '../../store/apiStatus'
 import { usePlanStore } from '../../store/planStore'
 import { PlaceCombobox } from './PlaceCombobox'
 import {
@@ -30,6 +31,8 @@ export function TripForm({ onSubmit }: TripFormProps) {
   const [errors, setErrors] = useState<FieldErrors>({})
   // Narrow selectors: the form re-renders on phase or error changes, never on slider ticks.
   const busy = usePlanStore((s) => s.phase === 'routing' || s.phase === 'weather')
+  // Held while the free API host wakes up (cold-API banner); enabled again once healthz answers.
+  const waking = useApiStatus((s) => s.status === 'waking')
   const originTz = usePlanStore((s) => s.originTz)
   const apiError = usePlanStore((s) => s.error)
   const serverErrors: FieldErrors =
@@ -47,6 +50,7 @@ export function TripForm({ onSubmit }: TripFormProps) {
   }
 
   function submit(next: TripFormDraft) {
+    if (waking) return
     const result = validateTrip(next)
     if (!result.ok) {
       setErrors(result.errors)
@@ -157,14 +161,15 @@ export function TripForm({ onSubmit }: TripFormProps) {
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || waking}
           className="flex-1 rounded-md bg-sky-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-800 focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          {busy ? 'Planning…' : 'Plan route'}
+          {waking ? 'Waiting for server…' : busy ? 'Planning…' : 'Plan route'}
         </button>
         <button
           type="button"
           onClick={runDemo}
+          disabled={waking}
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:outline-none"
         >
           Try demo trip
