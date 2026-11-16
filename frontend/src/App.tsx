@@ -12,7 +12,7 @@ import { TripForm } from './features/trip-form/TripForm'
 import type { PlanRequest } from './lib/api/types'
 import { MOBILE_QUERY, useMediaQuery } from './lib/hooks/useMediaQuery'
 import { usePlanStore } from './store/planStore'
-import { ThemeToggle } from './ui/ThemeToggle'
+import { AppHeader } from './ui/AppHeader'
 
 // maplibre-gl and deck.gl load in their own chunk so the form paints first (map-performance rule 9).
 const MapView = lazy(() => import('./features/map/MapView'))
@@ -53,10 +53,20 @@ function Panel({
       role="tabpanel"
       aria-labelledby={`tab-${id}`}
       hidden={!active}
-      className="space-y-4"
+      className="animate-fade space-y-4"
     >
       {children}
     </section>
+  )
+}
+
+/** Desktop section title with a one-line hint. */
+function PanelHeading({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h2 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h2>
+      <p className="truncate text-xs text-ink-3">{hint}</p>
+    </div>
   )
 }
 
@@ -72,33 +82,30 @@ function SheetTabs({ tab, onChange }: { tab: TabId; onChange: (tab: TabId) => vo
     document.getElementById(`tab-${next.id}`)?.focus()
   }
   return (
-    <div
-      role="tablist"
-      aria-label="Panels"
-      className="flex shrink-0 border-b border-line bg-surface px-2"
-    >
-      {TABS.map((t) => (
-        <button
-          key={t.id}
-          id={`tab-${t.id}`}
-          type="button"
-          role="tab"
-          aria-selected={tab === t.id}
-          aria-controls={`panel-${t.id}`}
-          tabIndex={tab === t.id ? 0 : -1}
-          onClick={() => onChange(t.id)}
-          onKeyDown={onKeyDown}
-          className="relative flex-1 py-2.5 text-sm font-medium text-ink-3 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none focus-visible:ring-inset aria-selected:text-ink"
-        >
-          {t.label}
-          {tab === t.id && (
-            <span
-              aria-hidden
-              className="absolute inset-x-4 bottom-0 h-0.5 rounded-full bg-accent"
-            />
-          )}
-        </button>
-      ))}
+    <div role="tablist" aria-label="Panels" className="shrink-0 px-3 pt-3">
+      <div className="relative flex rounded-xl bg-surface-2 p-1">
+        <span
+          aria-hidden
+          className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-lg bg-surface shadow-sm ring-1 ring-line transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(${TABS.findIndex((t) => t.id === tab) * 100}%)` }}
+        />
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            id={`tab-${t.id}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            aria-controls={`panel-${t.id}`}
+            tabIndex={tab === t.id ? 0 : -1}
+            onClick={() => onChange(t.id)}
+            onKeyDown={onKeyDown}
+            className="relative flex-1 rounded-lg py-2 text-sm font-medium text-ink-3 transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none aria-selected:text-ink"
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -122,57 +129,56 @@ export default function App() {
   )
 
   return (
-    <div className="flex h-dvh flex-col bg-canvas text-ink md:flex-row">
-      <aside className="flex min-h-0 flex-1 flex-col border-t border-line bg-surface shadow-[0_-4px_12px_rgb(0_0_0/0.06)] md:w-[400px] md:flex-none md:border-t-0 md:border-r md:shadow-none">
-        <header className="hidden items-start justify-between px-5 pt-5 md:flex">
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight">Spotter</h1>
-            <p className="text-sm text-ink-3">Weather-aware truck routing</p>
+    <div className="flex h-dvh flex-col text-ink">
+      <AppHeader />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row md:gap-3 md:p-3">
+        <aside className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden max-md:rounded-t-2xl max-md:border-t max-md:border-line max-md:bg-surface max-md:shadow-[0_-12px_30px_-12px_rgb(0_0_0/0.3)] md:glass md:w-[420px] md:flex-none md:rounded-2xl">
+          {mobile && <SheetTabs tab={tab} onChange={setTab} />}
+          <div className="scroll-thin min-h-0 flex-1 space-y-6 overflow-y-auto p-4 md:p-5">
+            <ServerStatus />
+            <Panel id="trip" label="Trip" mobile={mobile} active={tab === 'trip'}>
+              {!mobile && <PanelHeading title="Plan a trip" hint="Where, when and how heavy" />}
+              <TripForm onSubmit={submitPlan} />
+            </Panel>
+            <Panel id="routes" label="Routes" mobile={mobile} active={tab === 'routes'}>
+              {!mobile && (
+                <PanelHeading title="Routes" hint="Three options, ranked by weather risk" />
+              )}
+              <PlanStatus />
+              <PlanBanners />
+              <RouteList />
+            </Panel>
+            <Panel id="why" label="Why this route" mobile={mobile} active={tab === 'why'}>
+              {mobile && !hasPlan && (
+                <p className="text-sm text-ink-2">Plan a trip to see why a route is recommended.</p>
+              )}
+              <WhyPanel />
+            </Panel>
+            <footer className="border-t border-line pt-3 text-[11px] text-ink-3">
+              Routing by TomTom. Weather data by Open-Meteo.com (CC BY 4.0).
+            </footer>
           </div>
-          <ThemeToggle />
-        </header>
-        {mobile && <SheetTabs tab={tab} onChange={setTab} />}
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 md:p-5">
-          <ServerStatus />
-          <Panel id="trip" label="Trip" mobile={mobile} active={tab === 'trip'}>
-            <TripForm onSubmit={submitPlan} />
-          </Panel>
-          <Panel id="routes" label="Routes" mobile={mobile} active={tab === 'routes'}>
-            <PlanStatus />
-            <PlanBanners />
-            <RouteList />
-          </Panel>
-          <Panel id="why" label="Why this route" mobile={mobile} active={tab === 'why'}>
-            {mobile && !hasPlan && (
-              <p className="text-sm text-ink-2">Plan a trip to see why a route is recommended.</p>
-            )}
-            <WhyPanel />
-          </Panel>
-          <footer className="pt-2 text-[11px] text-ink-3">
-            Routing by TomTom. Weather data by Open-Meteo.com (CC BY 4.0).
-          </footer>
-        </div>
-      </aside>
+        </aside>
 
-      <main className="relative order-first h-[55dvh] shrink-0 md:order-none md:h-full md:min-w-0 md:flex-1">
-        <Suspense
-          fallback={<div className="absolute inset-0 animate-pulse bg-surface-2" aria-hidden />}
-        >
-          <MapView />
-        </Suspense>
-        <div className="pointer-events-none absolute top-2 left-2 md:hidden">
-          <Legend compact />
-        </div>
-        <ThemeToggle className="absolute top-[76px] right-2.5 md:hidden" />
-        <div className="pointer-events-none absolute inset-x-2 bottom-7 flex items-end gap-3 md:inset-x-3 md:bottom-8">
-          <div className="max-w-xl min-w-0 flex-1">
-            <TimeSlider />
+        <main className="relative order-first h-[50dvh] shrink-0 overflow-hidden md:order-none md:h-full md:min-w-0 md:flex-1 md:rounded-2xl md:shadow-[0_0_0_1px_var(--glass-edge),var(--shadow-panel)]">
+          <Suspense
+            fallback={<div className="absolute inset-0 animate-pulse bg-surface-2" aria-hidden />}
+          >
+            <MapView />
+          </Suspense>
+          <div className="pointer-events-none absolute top-2 left-2 md:hidden">
+            <Legend compact />
           </div>
-          <div className="ml-auto hidden md:block">
-            <Legend />
+          <div className="pointer-events-none absolute inset-x-2 bottom-7 flex items-end gap-3 md:inset-x-3 md:bottom-8">
+            <div className="max-w-xl min-w-0 flex-1">
+              <TimeSlider />
+            </div>
+            <div className="ml-auto hidden md:block">
+              <Legend />
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   )
 }

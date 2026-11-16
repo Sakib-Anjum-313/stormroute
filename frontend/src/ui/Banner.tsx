@@ -35,7 +35,7 @@ export function Banner({
     <Tag
       {...(live === 'assertive' ? { role: 'alert' } : {})}
       data-testid={testId}
-      className={`flex gap-2 rounded-md border p-2.5 text-sm ${TONE[tone]}`}
+      className={`animate-fade flex gap-2.5 rounded-xl border p-3 text-sm ${TONE[tone]}`}
     >
       {icon ?? (
         <span

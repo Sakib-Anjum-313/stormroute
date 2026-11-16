@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 import type { IntervalMi, PlanRoute } from '../../lib/api/types'
 import { formatAvgRisk, formatDuration, formatMiles, formatTime } from '../../lib/format/format'
 import type { MapRoute } from '../../lib/plan/decodePlan'
@@ -14,6 +16,8 @@ export interface RouteCardProps {
   recommended: boolean
   applyHos: boolean
   originTz: string | null
+  /** Position in the list, for the staggered entrance. */
+  index?: number
 }
 
 function durationText(route: MapRoute, applyHos: boolean): string {
@@ -35,6 +39,7 @@ export function RouteCard({
   recommended,
   applyHos,
   originTz,
+  index = 0,
 }: RouteCardProps) {
   // Per-card booleans: hovering one card re-renders only the cards whose flag changed.
   const selected = usePlanStore((s) => s.selectedRouteId === route.id)
@@ -55,18 +60,25 @@ export function RouteCard({
       onMouseLeave={() => setHoveredRoute(null)}
       onFocus={() => setHoveredRoute(route.id)}
       onBlur={() => setHoveredRoute(null)}
-      className={`block w-full rounded-lg border bg-surface p-3 text-left text-sm shadow-sm transition-[border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none ${
+      style={{ '--i': index } as CSSProperties}
+      className={`animate-rise group relative block w-full overflow-hidden rounded-2xl border bg-surface p-3.5 text-left text-sm transition-[border-color,box-shadow,transform] duration-200 focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none ${
         selected
-          ? 'border-accent ring-1 ring-accent'
+          ? 'border-accent shadow-[0_0_0_1px_var(--accent),0_12px_30px_-14px_var(--accent)]'
           : hovered
-            ? 'border-line-strong shadow-md'
-            : 'border-line'
-      }`}
+            ? '-translate-y-0.5 border-line-strong shadow-[var(--shadow-panel)]'
+            : 'border-line shadow-sm'
+      } ${recommended && scored ? 'animate-glow-once' : ''}`}
     >
+      {/* Route color strip down the left edge. */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ backgroundColor: route.hex }}
+      />
       <span className="flex items-center gap-2">
         <span
           aria-hidden
-          className="flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white"
+          className="flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
           style={{ backgroundColor: route.hex }}
         >
           {route.id}
@@ -78,7 +90,7 @@ export function RouteCard({
           </span>
         )}
         {recommended && (
-          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-semibold text-accent-ink">
+          <span className="btn-primary ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold">
             <svg viewBox="0 0 12 12" aria-hidden className="size-3">
               <path
                 d="M2.5 6.5l2.2 2.2 4.8-5"
@@ -93,13 +105,10 @@ export function RouteCard({
       </span>
 
       <span id={`route-${route.id}-details`} className="block">
-        <span className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs text-ink-2">
-          <span className="text-ink-3">Distance</span>
-          <span className="tabular-nums">{formatMiles(route.distanceMi)}</span>
-          <span className="text-ink-3">Duration</span>
-          <span className="tabular-nums">{durationText(route, applyHos)}</span>
-          <span className="text-ink-3">Arrives</span>
-          <span className="tabular-nums">{formatTime(route.summary.arrival_utc, originTz)}</span>
+        <span className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2 text-xs">
+          <Stat label="Distance" value={formatMiles(route.distanceMi)} />
+          <Stat label="Duration" value={durationText(route, applyHos)} />
+          <Stat label="Arrives" value={formatTime(route.summary.arrival_utc, originTz)} />
         </span>
 
         {aggregates ? (
@@ -123,13 +132,13 @@ export function RouteCard({
                 )}
               </span>
             )}
-            <span className="mt-2.5 block">
+            <span className="mt-3 block">
               <MileageBar milesByLevel={aggregates.miles_by_level} />
             </span>
-            <span className="mt-2 flex items-center justify-between gap-2 text-xs text-ink-2">
+            <span className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-2.5 text-xs text-ink-2">
               <span>
                 Avg risk{' '}
-                <span className="font-semibold text-ink tabular-nums">
+                <span className="text-sm font-semibold text-ink tabular-nums">
                   {formatAvgRisk(aggregates.avg_risk)}
                 </span>
                 <span className="text-ink-3"> / 4</span>
@@ -151,10 +160,20 @@ export function RouteCard({
   )
 }
 
+/** One labelled number in the card's stat row. */
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="flex min-w-0 flex-col rounded-lg bg-surface-2 px-2.5 py-1.5">
+      <span className="text-[11px] text-ink-3">{label}</span>
+      <span className="font-medium text-ink tabular-nums">{value}</span>
+    </span>
+  )
+}
+
 /** Placeholder while routing runs (no routes yet). */
 export function RouteCardSkeleton() {
   return (
-    <div aria-hidden className="rounded-lg border border-line bg-surface p-3 shadow-sm">
+    <div aria-hidden className="rounded-2xl border border-line bg-surface p-3.5 shadow-sm">
       <div className="flex items-center gap-2">
         <div className="size-6 animate-pulse rounded-md bg-surface-2" />
         <div className="h-4 w-24 animate-pulse rounded bg-surface-2" />

@@ -78,7 +78,7 @@ export function MapPopover({ map }: { map: MaplibreMap }) {
         <div
           ref={tipRef}
           role="tooltip"
-          className="pointer-events-none absolute top-0 left-0 z-10 max-w-64 rounded-md border border-line bg-surface/95 px-2.5 py-1.5 shadow-lg backdrop-blur"
+          className="glass-strong pointer-events-none absolute top-0 left-0 z-10 max-w-64 rounded-xl px-3 py-2"
         >
           <PickSummary pick={hoverPick} routes={routeRefs} originTz={originTz} />
         </div>
@@ -89,14 +89,14 @@ export function MapPopover({ map }: { map: MaplibreMap }) {
           ref={popRef}
           aria-label="Map details"
           data-testid="map-popup"
-          className="absolute top-0 right-auto left-0 z-20 m-0 w-72 max-w-[calc(100%-16px)] rounded-lg border border-line bg-surface p-3 pr-8 shadow-xl"
+          className="absolute top-0 right-auto left-0 z-20 m-0 w-72 max-w-[calc(100%-16px)] rounded-2xl border border-line bg-surface p-3.5 pr-9 text-ink shadow-[var(--shadow-panel)]"
         >
           <button
             ref={closeRef}
             type="button"
             onClick={() => pinPick(null)}
             aria-label="Close details"
-            className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded text-ink-3 hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
+            className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
           >
             <svg viewBox="0 0 12 12" aria-hidden className="size-3">
               <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.6" />

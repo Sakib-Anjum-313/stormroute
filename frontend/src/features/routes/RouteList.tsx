@@ -30,10 +30,10 @@ export function RouteList() {
     <ul
       aria-label="Routes"
       aria-busy={plan === null}
-      className="space-y-2"
+      className="space-y-3"
       data-testid={plan ? 'plan-summary' : undefined}
     >
-      {routes.map((route) => (
+      {routes.map((route, i) => (
         <li key={route.id}>
           <RouteCard
             route={route}
@@ -42,6 +42,7 @@ export function RouteList() {
             recommended={route.id === recommendedId}
             applyHos={applyHos}
             originTz={originTz}
+            index={i}
           />
         </li>
       ))}

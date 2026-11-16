@@ -9,6 +9,12 @@
       "env": { "PLAN_FIXTURES": "1" }
     },
     {
+      "name": "api-live",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--directory", "backend", "python", "manage.py", "runserver", "8000"],
+      "port": 8000
+    },
+    {
       "name": "web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["-C", "frontend", "dev", "--port", "5173"],

@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { watchApiHealth } from './store/apiStatus'
 import { initTheme } from './store/theme'
+import '@fontsource-variable/dm-sans/wght.css'
 import './index.css'
 
 const queryClient = new QueryClient({

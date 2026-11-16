@@ -127,6 +127,55 @@ test('shows "No matches" when geocoding finds nothing', async () => {
   expect(await screen.findByText("No matches for 'Atlantis'")).toBeInTheDocument()
 })
 
+test('Enter takes the highlighted top suggestion, never a stale one', async () => {
+  stubGeocode()
+  const { user } = renderForm()
+  const origin = screen.getByRole('combobox', { name: 'Origin' })
+  await user.type(origin, 'Den')
+  const top = await screen.findByRole('option', { name: 'Denver, CO, USA' })
+  expect(top).toHaveAttribute('aria-selected', 'true')
+  expect(origin).toHaveAttribute('aria-activedescendant', top.id)
+
+  // Typing again makes the list stale until the new query answers: Enter waits.
+  await user.type(origin, 'v{Enter}')
+  expect(origin).toHaveValue('Denv')
+  expect(screen.getByRole('listbox', { name: 'Origin suggestions', hidden: true })).toHaveAttribute(
+    'aria-busy',
+    'true',
+  )
+
+  await waitFor(() =>
+    expect(
+      screen.getByRole('listbox', { name: 'Origin suggestions', hidden: true }),
+    ).not.toHaveAttribute('aria-busy'),
+  )
+  await user.keyboard('{Enter}')
+  expect(origin).toHaveValue('Denver, CO, USA')
+  expect(screen.queryByRole('option')).toBeNull()
+})
+
+test('arrow keys move the highlight from the top suggestion', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve(
+        Response.json({
+          results: [
+            { label: 'Denver, CO, USA', lat: 39.74, lon: -104.99, kind: 'Geo' },
+            { label: 'Denton, TX, USA', lat: 33.21, lon: -97.13, kind: 'Geo' },
+          ],
+        }),
+      ),
+    ),
+  )
+  const { user } = renderForm()
+  const origin = screen.getByRole('combobox', { name: 'Origin' })
+  await user.type(origin, 'Den')
+  await screen.findByRole('option', { name: 'Denton, TX, USA' })
+  await user.keyboard('{ArrowDown}{Enter}')
+  expect(origin).toHaveValue('Denton, TX, USA')
+})
+
 test('does not geocode fewer than 3 characters', async () => {
   const fetchMock = stubGeocode()
   const { user } = renderForm()
@@ -146,6 +195,33 @@ test('the demo button fills and submits the demo trip', async () => {
     apply_hos: false,
   })
   expect(screen.getByRole('combobox', { name: 'Origin' })).toHaveValue('Denver, CO, USA')
+})
+
+test('the swap button exchanges origin and destination', async () => {
+  const { user, onSubmit } = renderForm()
+  const swap = screen.getByRole('button', { name: 'Swap origin and destination' })
+  expect(swap).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Try demo trip' }))
+  await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+
+  await user.click(swap)
+  expect(screen.getByRole('combobox', { name: 'Origin' })).toHaveValue('Salt Lake City, UT, USA')
+  expect(screen.getByRole('combobox', { name: 'Destination' })).toHaveValue('Denver, CO, USA')
+  await user.click(screen.getByRole('button', { name: 'Plan route' }))
+  expect(onSubmit.mock.calls[1]?.[0]).toMatchObject({
+    origin: { label: 'Salt Lake City, UT, USA' },
+    destination: { label: 'Denver, CO, USA' },
+  })
+})
+
+test('swapping with one place empty moves it and clears the other field', async () => {
+  stubGeocode()
+  const { user } = renderForm()
+  await pick(user, 'Origin', 'Denv', 'Denver, CO, USA')
+  await user.click(screen.getByRole('button', { name: 'Swap origin and destination' }))
+  expect(screen.getByRole('combobox', { name: 'Origin' })).toHaveValue('')
+  expect(screen.getByRole('combobox', { name: 'Destination' })).toHaveValue('Denver, CO, USA')
+  expect(screen.getByRole('button', { name: 'Plan route' })).toBeDisabled()
 })
 
 describe('validateTrip', () => {

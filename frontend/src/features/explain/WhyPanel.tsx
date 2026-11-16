@@ -21,14 +21,18 @@ export function WhyPanel() {
   const blind = noWeatherAnywhere(rec)
 
   return (
-    <section aria-labelledby="why-heading" className="space-y-2.5" data-testid="why-panel">
-      <h2 id="why-heading" className="text-sm font-semibold text-ink">
+    <section
+      aria-labelledby="why-heading"
+      className="animate-fade space-y-3 rounded-2xl border border-line bg-surface-2/60 p-3.5"
+      data-testid="why-panel"
+    >
+      <h2 id="why-heading" className="text-[15px] font-semibold tracking-tight text-ink">
         Why this route?
       </h2>
       <p className="text-sm text-ink-2" data-testid="why-sentence">
         {whySentence(rec, labelOf)}
       </p>
-      <div className="overflow-x-auto rounded-lg border border-line">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface">
         <table className="w-full border-collapse text-xs">
           <caption className="sr-only">
             Comparator steps at {interval}-mile sampling. Lower is better at each step; the first
@@ -67,7 +71,7 @@ export function WhyPanel() {
                   <span className="mr-1 text-ink-3 tabular-nums">{row.index}</span>
                   {row.label}
                   {row.decisive && (
-                    <span className="ml-1.5 rounded bg-accent px-1 py-px text-[10px] font-semibold text-accent-ink">
+                    <span className="btn-primary ml-1.5 rounded-full px-1.5 py-px text-[10px] font-semibold">
                       decides
                     </span>
                   )}

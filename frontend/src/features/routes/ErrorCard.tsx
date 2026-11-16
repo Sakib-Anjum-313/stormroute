@@ -55,7 +55,7 @@ export function ErrorCard({ error }: { error: ApiError }) {
     <div
       role="alert"
       data-testid={`error-${error.code}`}
-      className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-950 dark:border-red-800/70 dark:bg-red-950/40 dark:text-red-100"
+      className="animate-fade rounded-xl border border-red-300 bg-red-50 p-3.5 text-sm text-red-950 dark:border-red-800/70 dark:bg-red-950/40 dark:text-red-100"
     >
       <p className="font-semibold">{copy.title}</p>
       <p className="mt-0.5 text-[13px]">{body}</p>
@@ -66,7 +66,7 @@ export function ErrorCard({ error }: { error: ApiError }) {
           type="button"
           onClick={() => void retryPlan()}
           disabled={left > 0}
-          className="mt-2 rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-semibold text-red-900 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-700 dark:bg-red-950 dark:text-red-100 dark:hover:bg-red-900"
+          className="mt-2.5 rounded-lg border border-red-300 bg-white px-2.5 py-1 text-xs font-semibold text-red-900 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-600 focus-visible:ring-offset-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-700 dark:bg-red-950 dark:text-red-100 dark:hover:bg-red-900"
         >
           {left > 0 ? `Retry in ${left} s` : 'Retry'}
         </button>

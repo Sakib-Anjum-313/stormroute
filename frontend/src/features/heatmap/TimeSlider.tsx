@@ -30,6 +30,8 @@ export function TimeSlider() {
       if (input) {
         if (Math.abs(input.valueAsNumber - hour) > 1e-9) input.value = String(hour)
         input.setAttribute('aria-valuetext', text)
+        // Filled part of the track (.range in index.css); one custom property, no React render.
+        input.style.setProperty('--fill', `${(hour / MAX_HOUR) * 100}%`)
       }
     }
     paint(usePlanStore.getState().hour)
@@ -86,21 +88,31 @@ export function TimeSlider() {
   }
 
   return (
-    <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-line bg-surface/95 px-3 py-2 shadow-lg backdrop-blur">
+    <div className="glass-strong animate-rise pointer-events-auto flex items-center gap-3 rounded-2xl px-3 py-2.5">
       <button
         type="button"
         onClick={togglePlay}
         aria-label={playing ? 'Pause heatmap' : 'Play heatmap'}
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink hover:bg-accent-hover focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none"
+        className="btn-primary flex size-10 shrink-0 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface focus-visible:outline-none"
       >
-        <span aria-hidden>{playing ? '❚❚' : '▶'}</span>
+        <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="currentColor">
+          {playing ? (
+            <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" />
+          ) : (
+            <path d="M5 2.8v10.4a.6.6 0 0 0 .9.5l8.2-5.2a.6.6 0 0 0 0-1L5.9 2.3a.6.6 0 0 0-.9.5z" />
+          )}
+        </svg>
       </button>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex items-baseline justify-between gap-2 text-xs text-ink-2">
-          <span className="font-medium text-ink">
+          <span className="font-semibold text-ink">
             Weather<span className="max-sm:hidden"> along the corridor</span>
           </span>
-          <output ref={labelRef} htmlFor="heatmap-hour" className="tabular-nums" />
+          <output
+            ref={labelRef}
+            htmlFor="heatmap-hour"
+            className="rounded-md bg-accent-soft px-1.5 py-0.5 font-medium text-ink tabular-nums"
+          />
         </div>
         <input
           ref={inputRef}
@@ -114,7 +126,7 @@ export function TimeSlider() {
           onInput={(event) => writeCoalesced(event.currentTarget.valueAsNumber)}
           onPointerDown={() => setPlaying(false)}
           onKeyDown={onKeyDown}
-          className="w-full accent-[var(--accent)]"
+          className="range w-full"
           data-testid="heatmap-slider"
         />
         <div className="flex justify-between text-[10px] text-ink-3" aria-hidden>

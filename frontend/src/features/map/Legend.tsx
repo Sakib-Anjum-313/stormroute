@@ -27,8 +27,8 @@ function LevelMark({ level }: { level: RiskLevel }) {
 export function Legend({ compact = false }: { compact?: boolean }) {
   if (compact) return <CompactLegend />
   return (
-    <div className="pointer-events-auto w-44 rounded-lg border border-line bg-surface/95 px-2.5 py-2 text-xs text-ink-2 shadow backdrop-blur">
-      <ul aria-label="Risk levels" className="space-y-0.5">
+    <div className="glass-strong animate-rise pointer-events-auto w-48 rounded-2xl px-3 py-2.5 text-xs text-ink-2">
+      <ul aria-label="Risk levels" className="space-y-1">
         {RISK_LEVELS.map((level) => (
           <li key={level} className="flex items-center gap-2">
             <LevelMark level={level} />
@@ -40,7 +40,7 @@ export function Legend({ compact = false }: { compact?: boolean }) {
           <span className="text-ink">No data</span>
         </li>
       </ul>
-      <details className="group mt-1.5 border-t border-line pt-1">
+      <details className="group mt-2 border-t border-line pt-1.5">
         <summary className="flex cursor-pointer list-none items-center justify-between rounded text-[11px] font-medium text-ink-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none">
           Thresholds &amp; symbols
           <span aria-hidden className="text-ink-3 transition-transform group-open:rotate-180">
@@ -86,7 +86,7 @@ function CompactLegend() {
   return (
     <ul
       aria-label="Risk levels"
-      className="pointer-events-auto flex max-w-[15rem] flex-wrap gap-x-2 gap-y-0.5 rounded-md border border-line bg-surface/90 px-2 py-1 text-[10px] text-ink-2 shadow"
+      className="glass-strong pointer-events-auto flex max-w-[15rem] flex-wrap gap-x-2 gap-y-0.5 rounded-xl px-2.5 py-1.5 text-[10px] text-ink-2"
     >
       {RISK_LEVELS.map((level) => (
         <li key={level} className="flex items-center gap-1">

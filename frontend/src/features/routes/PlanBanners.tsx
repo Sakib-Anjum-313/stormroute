@@ -35,7 +35,7 @@ export function PlanBanners() {
       {lines.length > 0 && (
         <div
           role="alert"
-          className="rounded-md border border-red-300 bg-red-50 p-2.5 text-sm text-red-950 dark:border-red-800/70 dark:bg-red-950/40 dark:text-red-100"
+          className="animate-fade rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-950 dark:border-red-800/70 dark:bg-red-950/40 dark:text-red-100"
         >
           <p className="flex items-center gap-2 font-semibold">
             <NoTravelIcon />
